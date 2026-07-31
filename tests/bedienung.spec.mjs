@@ -241,6 +241,35 @@ test("Eigene Kategorie im Formular anlegen und direkt verwenden", async ({ page 
   await expect(page.locator("#detail-inhalt .katchip")).toContainText("Haustier");
 });
 
+test("Ein eingefügtes Emoji wird übernommen, auch eine Flagge", async ({ page }) => {
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  await page.fill("#kat-name", "Urlaub Italien");
+  // Ein Zeichen, das nicht im Raster steht – direkt ins Feld eingefügt
+  await page.fill("#kat-emoji", "🇮🇹");
+  await page.locator("#kat-emoji").blur();
+  await expect(page.locator("#kat-emoji-gross")).toHaveText("🇮🇹");
+  await expect(page.locator("#kat-emoji-warn")).toBeHidden();
+  await page.click("#kat-ok");
+
+  const k = await page.evaluate(() => window.N2L.Core.eigene[0]);
+  expect(k.emoji).toBe("🇮🇹");
+  await expect(page.locator("#s-kategorien")).toContainText("Urlaub Italien");
+});
+
+test("Ein Symbol, das das Gerät nicht kennt, wird angemerkt", async ({ page }) => {
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  await page.fill("#kat-emoji", "\u{10FFFD}");     // garantiert unbelegt
+  await page.locator("#kat-emoji").blur();
+  await expect(page.locator("#kat-emoji-warn")).toBeVisible();
+
+  // Nach der Korrektur verschwindet der Hinweis wieder
+  await page.fill("#kat-emoji", "🏠");
+  await page.locator("#kat-emoji").blur();
+  await expect(page.locator("#kat-emoji-warn")).toBeHidden();
+});
+
 test("Doppelter Kategoriename wird abgelehnt", async ({ page }) => {
   await page.click("#btn-settings");
   await page.click("#s-kat-neu");
