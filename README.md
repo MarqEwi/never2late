@@ -13,9 +13,12 @@ auf einen Blick sehen, was als Nächstes ansteht.
 
 - **Dashboard:** Abgelaufenes und bald Fälliges sofort sehen, schneller Zugriff
   auf „Neuer Eintrag“
-- **Einträge:** Titel, Kategorie (Ausweise, Karten, Beruflich, Fahrzeug,
-  Gesundheit, Reisen, Verträge, Sonstiges), Datumstyp (Gültig bis / Fällig am /
+- **Einträge:** Titel, Kategorien, Datumstyp (Gültig bis / Fällig am /
   Wiederkehrend), Nummer/Referenz und Notiz
+- **Kategorien:** acht mitgelieferte (Ausweise, Karten, Beruflich, Fahrzeug,
+  Gesundheit, Reisen, Verträge, Sonstiges) plus eigene mit frei wählbarem
+  Emoji. Ein Eintrag kann **mehreren** Kategorien angehören – der Reisepass
+  steht damit unter „Ausweise" und unter „Reisen"
 - **Zentrale Statuslogik:** Aktiv · Bald fällig · Abgelaufen · Archiviert
 - **Erinnerungen:** Standard 3 Monate / 1 Woche / 1 Tag vorher, je Eintrag
   anpassbar, ergänzbar und deaktivierbar – als lokale Benachrichtigungen
@@ -34,6 +37,10 @@ auf einen Blick sehen, was als Nächstes ansteht.
 - Klar getrennte Ebenen im Code: Logik-Kern (Status/Datum/Wiederholung/Erinnerungen,
   DOM-frei und testbar) → Datenschicht (versioniertes Schema im localStorage unter
   `n2l_`-Schlüsseln) → Oberfläche → native Module
+- Das Datenschema ist versioniert (aktuell 2). Einträge aus Schema 1 mit einer
+  einzelnen Kategorie werden beim Laden automatisch auf das Kategorien-Array
+  umgestellt – die Migration steckt in `Core.normalisieren()`, durch die jeder
+  Eintrag beim Speichern und Einlesen läuft
 - `npm run sync` kopiert die Web-Dateien nach `www/` (Quelle für die Capacitor-App)
 - Service Worker (`sw.js`) wird nur auf `github.io` registriert, nicht in der App
 - Native Brücke mit Feature-Detection (`window.Capacitor`): Kalender-Export läuft im

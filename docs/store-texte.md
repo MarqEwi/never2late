@@ -41,7 +41,7 @@ Never2Late sammelt alles, was ein Ablauf- oder Fälligkeitsdatum hat, an einem O
 SO FUNKTIONIERT ES
 Eintrag anlegen: Titel, Kategorie, Datum – fertig. Optional dazu eine Nummer, eine Notiz und eigene Erinnerungen. Das Dashboard zeigt danach immer zuerst, was als Nächstes zählt: abgelaufen, bald fällig, alles andere.
 
-ACHT KATEGORIEN FÜR DEN ALLTAG
+ACHT KATEGORIEN FÜR DEN ALLTAG – UND EIGENE DAZU
 • Ausweise – Personalausweis, Reisepass, Aufenthaltstitel
 • Karten – EC- und Kreditkarte, Gesundheitskarte, Mitgliedsausweise
 • Beruflich – Zertifikate, Lizenzen, Fortbildungen, jährliche Nachweise
@@ -50,6 +50,10 @@ ACHT KATEGORIEN FÜR DEN ALLTAG
 • Reisen – Visa und Reisedokumente
 • Verträge – Versicherungen, Garantien, Abos, Kündigungsfristen
 • Sonstiges – alles Übrige mit Frist
+
+Fehlt etwas? Leg dir eigene Kategorien an – mit eigenem Namen und einem Symbol deiner Wahl, zum Beispiel Haustier, Wohnung oder Studium.
+
+Und weil sich nicht alles in eine Schublade sortieren lässt, darf ein Eintrag zu mehreren Kategorien gehören: Der Reisepass steht unter Ausweise und unter Reisen und taucht in beiden Filtern auf.
 
 ERINNERUNGEN, DIE NICHT NERVEN
 Jeder Eintrag bekommt automatisch drei Erinnerungen: drei Monate, eine Woche und einen Tag vorher. Genug Vorlauf für einen Behördentermin, und trotzdem noch eine letzte Erinnerung kurz davor. Du kannst die Zeitpunkte je Eintrag ändern, weitere ergänzen oder alle abschalten. Die Meldungen sind kurz und sagen genau, worum es geht – zum Beispiel „Personalausweis läuft in 7 Tagen ab“.
@@ -78,7 +82,7 @@ Hell und dunkel, ohne Registrierung, sofort nutzbar. Alle Angaben ohne Gewähr: 
 |---|---|
 | App-Icon 512 × 512 | `icons/icon-512.png` |
 | Feature-Grafik 1024 × 500 | `docs/store-grafiken/feature-grafik-1024x500.png` |
-| Screenshots 1080 × 1920 (6 Stück) | `docs/store-grafiken/screenshot-1…6-1080x1920.png` |
+| Screenshots 1080 × 1920 (7 Stück) | `docs/store-grafiken/screenshot-1…7-1080x1920.png` |
 
 Neu erzeugen lassen sie sich mit:
 

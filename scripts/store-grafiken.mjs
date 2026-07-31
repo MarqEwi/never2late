@@ -20,7 +20,8 @@ const AUFNAHMEN = [
   { datei: "01-dashboard",         text: "Sofort sehen,<br>was als Nächstes zählt" },
   { datei: "03-liste",             text: "Ausweise, Karten, Verträge –<br>alles an einem Ort" },
   { datei: "04-detail",            text: "Erneuern, archivieren,<br>in den Kalender übernehmen" },
-  { datei: "05-formular",          text: "In wenigen Sekunden<br>erfasst" },
+  { datei: "05-formular",          text: "In wenigen Sekunden erfasst –<br>auch in mehreren Kategorien" },
+  { datei: "07-kategorie-neu",     text: "Eigene Kategorien<br>mit eigenem Symbol" },
   { datei: "06-archiv",            text: "Nichts läuft mehr<br>unbemerkt ab" },
   { datei: "02-dashboard-dunkel",  text: "Auch dunkel –<br>und ganz ohne Konto" }
 ];
