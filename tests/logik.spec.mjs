@@ -289,18 +289,30 @@ test("Löschen der letzten Kategorie eines Eintrags ergibt „Sonstiges“", asy
   expect(kats).toEqual(["sonstiges"]);
 });
 
-test("Emoji-Prüfung nimmt genau ein Zeichen", async ({ page }) => {
+test("Emoji-Prüfung nimmt genau ein Symbol – auch zusammengesetzte", async ({ page }) => {
   const r = await page.evaluate(() => {
     const K = window.N2L.Kategorien;
     return {
       einfach: K.emojiPruefen("🐾"),
       leer: K.emojiPruefen(""),
       undefiniert: K.emojiPruefen(undefined),
-      // Aus mehreren Zeichen bleibt das erste
+      // Aus einer Kette mehrerer bleibt das erste
       mehrere: K.emojiPruefen("🐾🏠🎓"),
-      // Zusammengesetzte Emoji bleiben zusammen
+      // Alles, was zu einem Symbol gehört, bleibt zusammen
       hautfarbe: K.emojiPruefen("👋🏽"),
-      variante: K.emojiPruefen("⚠️")
+      variante: K.emojiPruefen("⚠️"),
+      flagge: K.emojiPruefen("🇩🇪"),
+      zweiFlaggen: K.emojiPruefen("🇩🇪🇫🇷"),
+      familie: K.emojiPruefen("👨‍👩‍👧‍👦"),
+      regenbogen: K.emojiPruefen("🏳️‍🌈"),
+      tagFlagge: K.emojiPruefen("🏴󠁧󠁢󠁥󠁮󠁧󠁿"),
+      // Neuere Zeichen (Unicode 15/15.1/16) laufen durch dieselbe Regel
+      neu15: K.emojiPruefen("🩷"),
+      neu151: K.emojiPruefen("🫎"),
+      neu16: K.emojiPruefen("🫩"),
+      phoenix: K.emojiPruefen("🐦‍🔥"),
+      limette: K.emojiPruefen("🍋‍🟩"),
+      kopfschuetteln: K.emojiPruefen("🙂‍↔️")
     };
   });
   expect(r.einfach).toBe("🐾");
@@ -309,6 +321,40 @@ test("Emoji-Prüfung nimmt genau ein Zeichen", async ({ page }) => {
   expect(r.mehrere).toBe("🐾");
   expect(r.hautfarbe).toBe("👋🏽");
   expect(r.variante).toBe("⚠️");
+  // Flaggen bestehen aus zwei Regional-Indikatoren und dürfen nicht
+  // nach dem ersten abgeschnitten werden.
+  expect(r.flagge).toBe("🇩🇪");
+  expect(r.zweiFlaggen).toBe("🇩🇪");
+  expect(r.familie).toBe("👨‍👩‍👧‍👦");
+  expect(r.regenbogen).toBe("🏳️‍🌈");
+  expect(r.tagFlagge).toBe("🏴󠁧󠁢󠁥󠁮󠁧󠁿");
+  expect(r.neu15).toBe("🩷");
+  expect(r.neu151).toBe("🫎");
+  expect(r.neu16).toBe("🫩");
+  expect(r.phoenix).toBe("🐦‍🔥");
+  expect(r.limette).toBe("🍋‍🟩");
+  expect(r.kopfschuetteln).toBe("🙂‍↔️");
+});
+
+test("Nicht darstellbare Emoji werden erkannt", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const P = window.N2L.EmojiPruefung;
+    return {
+      messbar: P.vorbereiten(),
+      alt: P.darstellbar("📌"),
+      neu15: P.darstellbar("🩷"),
+      verbund: P.darstellbar("🐦‍🔥"),
+      // Ein unbelegter Codepoint kann nirgends dargestellt werden
+      unbelegt: P.darstellbar("\u{10FFFD}"),
+      leer: P.darstellbar("")
+    };
+  });
+  expect(r.messbar).toBe(true);
+  expect(r.alt).toBe(true);
+  expect(r.neu15).toBe(true);
+  expect(r.verbund).toBe(true);
+  expect(r.unbelegt).toBe(false);
+  expect(r.leer).toBe(true);          // nichts zu prüfen – nicht blockieren
 });
 
 test("Kalenderdatei enthält Termin, Wiederholung und Alarme", async ({ page }) => {

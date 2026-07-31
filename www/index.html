@@ -536,9 +536,15 @@
     <label class="field">Symbol</label>
     <div class="emojiwahl">
       <span class="gross" id="kat-emoji-gross" aria-hidden="true">📌</span>
-      <input type="text" id="kat-emoji" maxlength="8" aria-label="Eigenes Symbol">
+      <!-- maxlength großzügig: Familien- und Flaggen-Emoji bestehen aus bis zu
+           16 Zeichen; auf ein Symbol gekürzt wird erst beim Übernehmen. -->
+      <input type="text" id="kat-emoji" maxlength="32" aria-label="Eigenes Symbol">
     </div>
     <p class="hint">Eins aus der Auswahl antippen – oder ein beliebiges Emoji ins Feld einfügen.</p>
+    <p class="hint" id="kat-emoji-warn" style="display:none;color:var(--warn)">
+      Dieses Symbol kennt dein Gerät noch nicht – es würde als leeres Kästchen erscheinen.
+      Nimm lieber ein anderes.
+    </p>
     <div class="emojigrid" id="kat-emojis"></div>
     <p class="err" id="kat-err"></p>
 
@@ -911,19 +917,30 @@ const Kategorien = {
     if (!/^eigen-[a-z0-9-]+$/.test(id) || !label) return null;
     return { id, label, emoji: this.emojiPruefen(k.emoji), eigen: true };
   },
-  /* Genau ein Zeichen als Symbol. Emoji können aus mehreren Codepoints
-     bestehen (Hautfarbe, Variantenselektor, ZWJ-Folgen), deshalb wird nicht
-     auf Länge 1 geprüft, sondern auf ein einzelnes Graphem. */
+  /* Genau ein Symbol übernehmen. Ein Emoji ist oft mehr als ein Zeichen:
+     Hautton-Modifikator, Variantenselektor, ZWJ-Folgen (👨‍👩‍👧‍👦, 🐦‍🔥),
+     Flaggen aus zwei Regional-Indikatoren (🇩🇪) oder Tag-Folgen (🏴󠁧󠁢󠁥󠁮󠁧󠁿).
+     Deshalb wird nicht auf Länge 1 geprüft, sondern zusammengehalten, was
+     zusammengehört – und aus einer Kette mehrerer Emoji bleibt das erste. */
   emojiPruefen(v){
     const s = String(v == null ? "" : v).trim();
     if (!s) return "📌";
-    const zeichen = Array.from(s);
-    if (!zeichen.length) return "📌";
-    /* Ab dem zweiten sichtbaren Zeichen abschneiden – Verbinder und
-       Modifikatoren gehören noch zum ersten. */
+    const z = Array.from(s);
+    if (!z.length) return "📌";
+    const ZWJ = "‍";
+    const regional = c => c >= "\u{1F1E6}" && c <= "\u{1F1FF}";
+    const anhang = c => c === ZWJ || c === "️"
+      || (c >= "\u{1F3FB}" && c <= "\u{1F3FF}")     /* Hautton */
+      || (c >= "\u{E0020}" && c <= "\u{E007F}");    /* Tag-Zeichen */
     let ende = 1;
-    while (ende < zeichen.length && /[‍️\u{1f3fb}-\u{1f3ff}\u{e0020}-\u{e007f}]/u.test(zeichen[ende - 1] + zeichen[ende])) ende++;
-    return zeichen.slice(0, Math.min(ende, 8)).join("");
+    if (regional(z[0]) && z.length > 1 && regional(z[1])){
+      ende = 2;                                     /* Länderflagge */
+    } else {
+      /* Weiterlaufen über Anhängsel – und über alles, was direkt hinter
+         einem Verbinder steht. */
+      while (ende < z.length && (anhang(z[ende]) || z[ende - 1] === ZWJ)) ende++;
+    }
+    return z.slice(0, Math.min(ende, 10)).join("");
   },
 
   neueId(label){
@@ -1792,8 +1809,40 @@ function renderDetail(){
    passieren soll – im Formular wird die neue Kategorie gleich ausgewählt. */
 const EMOJI_AUSWAHL = (
   "📌📁🗂️📅⏰⏳🔔✅🔖📎🧾🏛️⚖️🛡️🔒🪪💳💼🚗🩺✈️📄🏠🔑🏦💰💡🔧🛠️🧰🚲🛵🚚⛵🎫🎟️🎬🎵🎓📚" +
-  "🏋️⚽🏕️🧳🌍📱💻🖨️📷⌚🔌🔋🧯🚨⚠️🩹💊🦷👓🧴🍼👶❤️⭐🌱🐕🐈🐾🍽️☕🎂🎁🧹🪴🖼️🎨🧑‍💻🧑‍🔧"
+  "🏋️⚽🏕️🧳🌍📱💻🖨️📷⌚🔌🔋🧯🚨⚠️🩹💊🦷👓🧴🍼👶❤️⭐🌱🐕🐈🐾🍽️☕🎂🎁🧹🪴🖼️🎨🧑‍💻🧑‍🔧" +
+  /* Neuere Zeichen (Unicode 13–15). Was das Gerät nicht darstellen kann,
+     wird beim Öffnen des Dialogs automatisch ausgeblendet. */
+  "🛟🛞🪫🪬🫙🫧🛜🪟🪑🪜🪝🪞🪣🪥🪦🪧🩵🩷🩶🪽🪿🫎🪼🫛🪻🧭🗝️🩻🫀🧾"
 ).match(/\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*/gu) || [];
+
+/* Nicht jedes Gerät kennt jedes Emoji – was der Schrift fehlt, erscheint als
+   leeres Kästchen. Deshalb wird die Auswahl einmal vermessen: Ein
+   darstellbares Emoji ist so breit wie ein sicher vorhandenes, und eine
+   Verbundfolge muss zu einem Zeichen verschmelzen, statt in ihre Einzelteile
+   zu zerfallen. Lässt sich nicht sinnvoll messen, wird lieber alles gezeigt
+   als fälschlich alles ausgeblendet. */
+const EmojiPruefung = {
+  ctx: null, referenz: 0, messbar: false,
+  vorbereiten(){
+    if (this.ctx) return this.messbar;
+    try {
+      this.ctx = document.createElement("canvas").getContext("2d");
+      this.ctx.font = "24px sans-serif";
+      this.referenz = this.ctx.measureText("📌").width;
+      const tofu = this.ctx.measureText("\u{10FFFD}").width;   /* unbelegt */
+      this.messbar = this.referenz > 0 && Math.abs(this.referenz - tofu) > 1;
+    } catch(e){ this.messbar = false; }
+    return this.messbar;
+  },
+  darstellbar(e){
+    if (!e || !this.vorbereiten()) return true;
+    const breite = this.ctx.measureText(e).width;
+    if (Math.abs(breite - this.referenz) > 1) return false;
+    if (e.indexOf("‍") < 0) return true;
+    const einzeln = this.ctx.measureText(e.split("‍").join("")).width;
+    return breite < einzeln - 1;
+  }
+};
 
 let katBearbeitet = null;      /* null = neue Kategorie */
 let katFertig = null;          /* Rückruf nach dem Speichern */
@@ -1804,6 +1853,9 @@ function katEmojiSetzen(v){
   $("kat-emoji-gross").textContent = e;
   $("kat-emojis").querySelectorAll("button").forEach(b =>
     b.classList.toggle("active", b.dataset.e === e));
+  /* Eingefügtes Zeichen, das dieses Gerät nicht kennt: freundlich hinweisen,
+     statt es kommentarlos als Kästchen anzuzeigen. */
+  $("kat-emoji-warn").style.display = EmojiPruefung.darstellbar(e) ? "none" : "";
 }
 function katDialog(id, fertig){
   katBearbeitet = id ? Core.eigene.find(k => k.id === id) || null : null;
@@ -1811,8 +1863,8 @@ function katDialog(id, fertig){
   $("kat-dlg-titel").textContent = katBearbeitet ? "Kategorie bearbeiten" : "Neue Kategorie";
   $("kat-name").value = katBearbeitet ? katBearbeitet.label : "";
   $("kat-err").classList.remove("show");
-  $("kat-emojis").innerHTML = EMOJI_AUSWAHL.map(e =>
-    '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
+  $("kat-emojis").innerHTML = EMOJI_AUSWAHL.filter(e => EmojiPruefung.darstellbar(e))
+    .map(e => '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
   $("kat-emojis").querySelectorAll("button").forEach(b =>
     b.addEventListener("click", () => katEmojiSetzen(b.dataset.e)));
   katEmojiSetzen(katBearbeitet ? katBearbeitet.emoji : "📌");
@@ -2259,7 +2311,7 @@ if (!load(OB_KEY, false)){ obShow(0); openModal("modal-onboarding"); }
 /* Für die automatisierten Tests: die Fachlogik ist bewusst DOM-frei und
    wird hier zum Prüfen freigelegt. Die Oberfläche greift nicht darauf zu. */
 window.N2L = { Core, Daten, Kategorien, Einst, Bridge, Erinnerungen, Kalender,
-               Edition, Ads, Billing, APP_VERSION };
+               EmojiPruefung, Edition, Ads, Billing, APP_VERSION };
 </script>
 </body>
 </html>
