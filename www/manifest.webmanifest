@@ -1,13 +1,13 @@
 {
-  "name": "SGT Rechner – Soldaten-Grundfitness-Tool",
-  "short_name": "SGT Rechner",
-  "description": "Zeitrechner für das Soldaten-Grundfitness-Tool (SGT) der Bundeswehr: Zeiten der vier Aufgaben eingeben und die Ampel-Kategorie Grün, Gelb oder Rot ermitteln.",
+  "name": "Never2Late – Ablaufdaten im Blick",
+  "short_name": "Never2Late",
+  "description": "Ablaufdaten, Gültigkeiten und wiederkehrende Fristen zentral erfassen, rechtzeitig erinnert werden und nichts mehr verpassen – Ausweise, Karten, Nachweise, Verträge und mehr.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f6f2",
-  "theme_color": "#3d4a33",
+  "background_color": "#f4f7f7",
+  "theme_color": "#0f766e",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

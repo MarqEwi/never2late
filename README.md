@@ -1,58 +1,58 @@
-# SGT Rechner – Soldaten-Grundfitness-Tool (inoffiziell)
+# Never2Late – Ablaufdaten im Blick
 
-Zeitrechner für das **Soldaten-Grundfitness-Tool (SGT)** der Bundeswehr: Die
-Zwischenzeiten der vier Aufgaben (Bewegen im Gelände, Ziehen, Tragen sowie Heben
-und Absetzen von Lasten) eingeben – die App ermittelt die Ampel-Kategorie
-**Grün, Gelb oder Rot** je Aufgabe und für den gesamten Durchlauf.
+Never2Late verwaltet **Ablaufdaten, Gültigkeiten und wiederkehrende Fristen**:
+Ausweise, Karten, berufliche Nachweise, Fahrzeugtermine, Gesundheitsdokumente,
+Reisedokumente und Verträge zentral erfassen, rechtzeitig erinnert werden und
+auf einen Blick sehen, was als Nächstes ansteht.
 
-> **Inoffizielle App** – privates Projekt, kein Angebot der Bundeswehr.
-> Alle Angaben ohne Gewähr; maßgeblich ist die offizielle Auswertung.
+> Alle Daten bleiben **lokal auf dem Gerät** – kein Konto, kein Server,
+> keine Cloud, kein Tracking. Die aktuelle Version (V1) enthält weder Werbung
+> noch Käufe.
 
-## Funktionen
+## Funktionen (V1)
 
-- **Teilnehmer-Modus:** Zeiten eingeben, Ampel-Kategorie live sehen, Verlauf lokal speichern
-- **Prüfermodus:** mehrere Testpersonen erfassen, Ergebnisliste mit Kategorie,
-  Aufbau- und Ablaufanleitung für den Parcours (inkl. Skizzen und Original-Plänen),
-  Drucken, Export als PDF/Bild/Text (Premium)
-- **Editionen:** Freie Version (mit Werbung, begrenzte Personenzahl) und Premium
-  (2,99 €: werbefrei, unbegrenzte Listen, Export als PDF/Bild/Text)
+- **Dashboard:** Abgelaufenes und bald Fälliges sofort sehen, schneller Zugriff
+  auf „Neuer Eintrag“
+- **Einträge:** Titel, Kategorie (Ausweise, Karten, Beruflich, Fahrzeug,
+  Gesundheit, Reisen, Verträge, Sonstiges), Datumstyp (Gültig bis / Fällig am /
+  Wiederkehrend), Nummer/Referenz und Notiz
+- **Zentrale Statuslogik:** Aktiv · Bald fällig · Abgelaufen · Archiviert
+- **Erinnerungen:** Standard 3 Monate / 1 Woche / 1 Tag vorher, je Eintrag
+  anpassbar, ergänzbar und deaktivierbar – als lokale Benachrichtigungen
+- **Wiederkehrende Fristen:** jährlich, halbjährlich oder monatlich; nach
+  „Erledigt“ wird der nächste Termin automatisch berechnet
+- **Erneuern & Archivieren:** Einträge erneuern (neues Datum) oder ins Archiv
+  verschieben – nichts geht verloren
+- **Liste:** Suche, Status- und Kategorie-Filter, das Dringendste zuerst
+- **Kalender-Export:** einzelne Termine als .ics-Datei übernehmen (optional,
+  ohne Kalender-Berechtigung)
 - Helles Design mit Dark Mode, responsiv, Ersteinrichtungs-Dialog
-- Komplett offline-fähig, alle Daten bleiben lokal auf dem Gerät (kein Server, kein Tracking)
 
 ## Technik
 
 - Eine einzige, in sich geschlossene `index.html` (inline CSS/JS, keine externen Abhängigkeiten)
+- Klar getrennte Ebenen im Code: Logik-Kern (Status/Datum/Wiederholung/Erinnerungen,
+  DOM-frei und testbar) → Datenschicht (versioniertes Schema im localStorage unter
+  `n2l_`-Schlüsseln) → Oberfläche → native Module
 - `npm run sync` kopiert die Web-Dateien nach `www/` (Quelle für die Capacitor-App)
 - Service Worker (`sw.js`) wird nur auf `github.io` registriert, nicht in der App
-- Native Brücke mit Feature-Detection (`window.Capacitor`): Datei-Export und Drucken laufen im
-  Browser über `a.download`/`window.print()`, in der Android-App über Capacitor-Plugins
+- Native Brücke mit Feature-Detection (`window.Capacitor`): Kalender-Export läuft im
+  Browser über `a.download`, in der Android-App über Filesystem + Share;
+  Erinnerungen über `@capacitor/local-notifications`
 - Plugins werden ausschließlich über `window.Capacitor.Plugins.<Name>` angesprochen
   (kein Bundler, daher kein `Capacitor.registerPlugin`)
+- AdMob-/Billing-Module liegen als ruhende Infrastruktur für spätere Versionen bei,
+  sind in V1 aber vollständig deaktiviert und nirgends sichtbar
 
-## Bewertungssystem (Kurzfassung)
+## Tests
 
-Das SGT besteht aus 4 Aufgaben, die in **einem Durchlauf ohne festgelegte Pause**
-auf einem 55 m × 10 m großen Parcours im Freien absolviert werden – mit Feldanzug,
-Gefechtshelm und 13-kg-Gewichtsweste (gesamt ca. 20 kg). Die Zeiten werden auf
-0,1 s genau gemessen.
+Playwright-Tests (vorinstalliertes Chromium, kein `playwright install`):
 
-| Aufgabe | Inhalt | Grün | Gelb | Rot |
-|---|---|---|---|---|
-| SGT-A „Bewegen im Gelände“ | ca. 130 m Parcours, 2× Slalom, 10 m Gleiten | ≤ 55 s | 55–70 s | ≥ 70 s |
-| SGT-B „Ziehen von Lasten“ | 50-kg-Dummy über ca. 40 m | ≤ 30 s | 30–50 s | ≥ 50 s |
-| SGT-C „Tragen von Lasten“ | 2 × 18-kg-Kanister über 100 m | ≤ 75 s | 75–100 s | ≥ 100 s |
-| SGT-D „Heben und Absetzen“ | 24-kg-Kanister 5× auf 1,25 m | ≤ 20 s | 20–50 s | ≥ 50 s |
-| *Gesamtzeit (nur Schnellüberblick)* | Summe A–D | ≤ 180 s | 180–270 s | ≥ 270 s |
-
-Die Grenzen gelten **für alle Testpersonen gleich** (keine Alters- oder
-Geschlechtergruppen). Die **schlechteste Einzelkategorie** bestimmt die Kategorie
-des Durchlaufs; ein **vorzeitiger Abbruch** bedeutet obligatorisch „Rot“.
-Die Zeitwerte sind laut Handanweisung **vorläufig**.
-
-Quelle: Kommando Streitkräftebasis / Institut für Präventivmedizin der Bundeswehr,
-„Handanweisung Soldaten-Grundfitness-Tool ‚SGT‘“ (Stand April 2019).
+```
+npx playwright test
+```
 
 ## Web-Version
 
-Die App läuft als Web-Version unter: <https://marqewi.github.io/sgt-rechner/>
+Die App läuft als Web-Version unter: <https://marqewi.github.io/never2late/>
 (GitHub Pages: Settings → Pages → Deploy from a branch → `main` / root)

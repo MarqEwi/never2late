@@ -1,84 +1,72 @@
-// Smoke-Test: App lädt fehlerfrei, SGT-Auswertung und Speicherung funktionieren.
+// Grundprüfung: Die App lädt fehlerfrei, zeigt sinnvolle Startzustände und
+// belegt im localStorage ausschließlich eigene Schlüssel.
 import { test, expect } from "@playwright/test";
+import { appOeffnen } from "./helfer.mjs";
 
-test("App lädt ohne Konsolenfehler und wertet das SGT korrekt aus", async ({ page }) => {
-  const errors = [];
-  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
-  page.on("pageerror", e => errors.push(String(e)));
+test("lädt ohne Konsolenfehler und zeigt den leeren Zustand", async ({ page }) => {
+  const fehler = [];
+  page.on("console", m => { if (m.type() === "error") fehler.push(m.text()); });
+  page.on("pageerror", e => fehler.push("PAGEERROR: " + e.message));
 
-  await page.goto("/");
-  await expect(page).toHaveTitle(/SGT Rechner/);
-  await page.click("#ob-skip");
-  await page.click("#go-teilnehmer");
+  await appOeffnen(page);
 
-  // Beispiel "Grün" aus Tabelle 2 der Handanweisung
-  await page.fill("#t-a", "48,2");
-  await page.fill("#t-b", "22,4");
-  await page.fill("#t-c", "60,6");
-  await page.fill("#t-d", "15,4");
-  await expect(page.locator("#t-r-total")).toHaveText("146,6 s");
-  await expect(page.locator("#t-r-grade")).toHaveText("Kategorie Grün");
-
-  // Ausklappbare Kategoriegrenzen (für alle gleich, ohne Wertungsgruppen)
-  await expect(page.locator("#t-limits-sum")).toContainText("für alle gleich");
-  await page.click("#t-limits-sum");
-  await expect(page.locator("#t-limits-body")).toContainText("≤ 55 s");   // SGT-A Grün
-  await expect(page.locator("#t-limits-body")).toContainText("≥ 100 s");  // SGT-C Rot
-  await expect(page.locator("#t-limits-body")).toContainText("vorläufig");
-  await page.click("#t-limits-sum");
-
-  // Beispiel "Gelb" 1 aus Tabelle 3: nur SGT-A im gelben Bereich
-  await page.fill("#t-a", "56,3");
-  await page.fill("#t-b", "25,9");
-  await page.fill("#t-c", "55,0");
-  await page.fill("#t-d", "18,8");
-  await expect(page.locator("#t-r-total")).toHaveText("156,0 s");
-  await expect(page.locator("#t-r-grade")).toHaveText("Kategorie Gelb");
-  await expect(page.locator("#t-r-failhint")).toContainText("SGT-A");
-
-  // Beispiel "Rot" 2 aus Tabelle 4: Abbruch bei SGT-D => obligatorisch Rot
-  await page.fill("#t-a", "54,5");
-  await page.fill("#t-b", "54,6");
-  await page.fill("#t-c", "101,9");
-  await page.selectOption("#t-abbruch", "d");
-  await expect(page.locator("#t-r-total")).toHaveText("Abbruch");
-  await expect(page.locator("#t-r-grade")).toHaveText("Kategorie Rot");
-  await expect(page.locator("#t-r-failhint")).toContainText("Abbruch");
-
-  // Verlauf speichern + nur sgt_-Schlüssel im localStorage
-  await page.selectOption("#t-abbruch", "");
-  await page.fill("#t-a", "48,2");
-  await page.fill("#t-b", "22,4");
-  await page.fill("#t-c", "60,6");
-  await page.fill("#t-d", "15,4");
-  await page.click("#t-save");
-  await expect(page.locator("#t-history table")).toBeVisible();
-  const keys = await page.evaluate(() => Object.keys(localStorage));
-  expect(keys.every(k => k.startsWith("sgt_"))).toBeTruthy();
-  expect(keys.some(k => k.startsWith("pft_") || k.startsWith("bft_"))).toBeFalsy();
-
-  expect(errors).toEqual([]);
+  expect(fehler).toEqual([]);
+  await expect(page).toHaveTitle(/Never2Late/);
+  await expect(page.locator("#view-home")).toHaveClass(/active/);
+  await expect(page.locator("#home-inhalt")).toContainText("Noch nichts erfasst");
+  await expect(page.locator("#btn-neu")).toBeVisible();
 });
 
-test("Prüfermodus: Testpersonen erfassen und kategorisieren", async ({ page }) => {
-  await page.goto("/");
-  await page.click("#ob-skip");
-  await page.click("#go-pruefer");
+test("Kurzeinführung erscheint beim ersten Start und danach nicht mehr", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.waitForFunction(() => !!window.N2L);
+  await expect(page.locator("#modal-onboarding")).toHaveClass(/open/);
 
-  await page.click("#p-add");
-  await page.fill("#e-name", "Mustermann, A.");
-  await page.fill("#e-a", "69,5");
-  await page.fill("#e-b", "52,7");
-  await page.fill("#e-c", "76,9");
-  await page.fill("#e-d", "54,3");
-  await page.click("#e-save");
-  // Beispiel "Rot" 1 aus Tabelle 4: Gesamt 253,4 s, Kategorie Rot
-  await expect(page.locator("#p-tbody tr")).toHaveCount(1);
-  await expect(page.locator("#p-tbody")).toContainText("253,4");
-  await expect(page.locator("#p-tbody")).toContainText("Rot");
+  await page.click("#ob-next");
+  await page.click("#ob-next");
+  await page.click("#ob-next");
+  await expect(page.locator("#modal-onboarding")).not.toHaveClass(/open/);
 
-  // Aufbau-&-Ablauf-Tab öffnet und zeigt die vier Aufgaben
-  await page.click("#ptab-aufbau-btn");
-  await expect(page.locator("#pruefer-tab-aufbau")).toContainText("SGT-A");
-  await expect(page.locator("#pruefer-tab-aufbau")).toContainText("Heben und Absetzen");
+  await page.reload();
+  await page.waitForFunction(() => !!window.N2L);
+  await expect(page.locator("#modal-onboarding")).not.toHaveClass(/open/);
+});
+
+test("belegt nur localStorage-Schlüssel mit dem Präfix n2l_", async ({ page }) => {
+  await appOeffnen(page);
+  await page.click("#btn-settings");
+  await page.click("#s-beispiele");
+  await expect(page.locator("#modal-settings")).not.toHaveClass(/open/);
+
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys.length).toBeGreaterThan(0);
+  const fremd = keys.filter(k => !k.startsWith("n2l_"));
+  expect(fremd).toEqual([]);
+});
+
+test("Beispieldaten decken alle Statuswerte ab", async ({ page }) => {
+  await appOeffnen(page);
+  await page.click("#btn-settings");
+  await page.click("#s-beispiele");
+
+  const zahlen = await page.locator(".stat b").allTextContents();
+  expect(zahlen).toHaveLength(3);
+  zahlen.forEach(z => expect(Number(z)).toBeGreaterThan(0));
+  await expect(page.locator(".hero")).toBeVisible();
+});
+
+test("Werbung und Käufe sind in V1 abgeschaltet und unsichtbar", async ({ page }) => {
+  await appOeffnen(page);
+  const r = await page.evaluate(() => ({
+    ads: window.N2L.Ads.ENABLED,
+    billing: window.N2L.Billing.ENABLED,
+    premium: window.N2L.Edition.isPremium(),
+    adbarSichtbar: getComputedStyle(document.getElementById("adbar")).display !== "none"
+  }));
+  expect(r.ads).toBe(false);
+  expect(r.billing).toBe(false);
+  expect(r.premium).toBe(false);
+  expect(r.adbarSichtbar).toBe(false);
+  await expect(page.locator("body")).not.toContainText("Premium");
+  await expect(page.locator("body")).not.toContainText("Werbung");
 });

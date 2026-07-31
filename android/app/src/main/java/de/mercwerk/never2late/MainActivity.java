@@ -1,4 +1,4 @@
-package de.mercwerk.sgtrechner;
+package de.mercwerk.never2late;
 
 import com.getcapacitor.BridgeActivity;
 

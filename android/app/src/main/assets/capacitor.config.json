@@ -1,6 +1,6 @@
 {
-	"appId": "de.mercwerk.sgtrechner",
-	"appName": "SGT Rechner",
+	"appId": "de.mercwerk.never2late",
+	"appName": "Never2Late",
 	"webDir": "www",
 	"server": {
 		"androidScheme": "https"

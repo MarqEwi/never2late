@@ -1,8 +1,8 @@
 {
-  "name": "sgt-rechner",
+  "name": "never2late",
   "version": "1.0.0",
   "private": true,
-  "description": "SGT Rechner – inoffizieller Zeitrechner für das Soldaten-Grundfitness-Tool der Bundeswehr (Web + Capacitor-App)",
+  "description": "Never2Late – Ablaufdaten, Gültigkeiten und wiederkehrende Fristen im Blick behalten (Web + Capacitor-App)",
   "scripts": {
     "sync-www": "node scripts/sync-www.mjs",
     "sync": "npm run sync-www",
@@ -16,6 +16,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.4.2",
     "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.1",
     "cordova-plugin-purchase": "^13.18.0"
   },

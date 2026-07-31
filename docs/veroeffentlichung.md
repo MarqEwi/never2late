@@ -1,96 +1,95 @@
-# Veröffentlichung Schritt für Schritt (SGT Rechner)
+# Veröffentlichung Schritt für Schritt (Never2Late)
 
-Einfache Checkliste für alle Schritte außerhalb des Codes. Reihenfolge einhalten –
-jeder Block ist unabhängig abhakbar.
+Einfache Checkliste für alles, was außerhalb des Codes zu tun ist. Reihenfolge
+einhalten – jeder Block ist unabhängig abhakbar.
+
+**Wichtig für diese App:** Never2Late V1 hat **keine Werbung und keine Käufe**.
+Die Schritte, die es bei den Fitness-Apps für AdMob und das Kaufprodukt gab,
+entfallen hier komplett. Was du dafür später bräuchtest, steht ganz unten unter
+„Später: Monetarisierung“ – jetzt ist dort nichts zu tun.
 
 ## 1. GitHub Pages aktivieren (Web-Version + Datenschutz-URL)
 
-1. Im Browser das Repo öffnen: `github.com/MarqEwi/sgt-rechner`
+1. Im Browser das Repo öffnen: `github.com/MarqEwi/never2late`
 2. Oben auf **Settings** → links auf **Pages**
 3. Bei „Build and deployment“: **Deploy from a branch** wählen,
    Branch **main**, Ordner **/ (root)** → **Save**
-4. Nach 1–2 Minuten ist die App unter `https://marqewi.github.io/sgt-rechner/`
-   erreichbar – und die Datenschutzerklärung unter
-   `https://marqewi.github.io/sgt-rechner/datenschutz.html`
-   (diese URL brauchst du später in der Play Console)
+4. Nach 1–2 Minuten ist die App erreichbar unter
+   `https://marqewi.github.io/never2late/`
+   und die Datenschutzerklärung unter
+   `https://marqewi.github.io/never2late/datenschutz.html`
 
-## 2. AdMob: neue App + Banner anlegen
+Die zweite Adresse brauchst du gleich in der Play Console. Ruf sie einmal auf
+und prüf, dass die Seite wirklich erscheint – Google prüft das auch.
 
-1. Auf [admob.google.com](https://admob.google.com) anmelden (gleiches Konto wie BFT/PFT)
-2. **Apps → App hinzufügen** → Plattform **Android** →
-   „Ist die App bei Google Play gelistet?“ → **Nein** (sie ist ja noch nicht veröffentlicht)
-3. App-Name: **SGT Rechner** → anlegen
-4. Die neue **App-ID** kopieren (Format `ca-app-pub-…~…`) →
-   in `android/app/src/main/AndroidManifest.xml` die Test-ID ersetzen
-5. In der neuen App: **Anzeigenblöcke → Anzeigenblock hinzufügen → Banner**,
-   Name z. B. „SGT Banner unten“ → anlegen
-6. Die **Banner-Block-ID** kopieren (Format `ca-app-pub-…/…`) →
-   in `index.html` bei `ADS_CONF` eintragen und `TESTING: false` setzen
-7. **Datenschutz & Mitteilungen** → DSGVO-Meldung für die neue App aktivieren,
-   Option „Nicht einwilligen“ einschalten
-8. Wichtig: Neue AdMob-Apps liefern anfangs oft „code 3 / not approved“ –
-   das ist die normale Prüfzeit (Stunden bis wenige Tage). Solange laufen
-   keine echten Anzeigen; die App funktioniert trotzdem.
+## 2. Play Console: App anlegen
 
-## 3. Play Console: App anlegen
+1. [play.google.com/console](https://play.google.com/console) öffnen →
+   **App erstellen**
+2. Ausfüllen:
+   - App-Name: **Never2Late – Ablaufdaten** (24 Zeichen, erlaubt sind 30)
+   - Standardsprache: **Deutsch (Deutschland)**
+   - App oder Spiel: **App**
+   - Kostenlos oder kostenpflichtig: **Kostenlos**
+3. Store-Eintrag ausfüllen (**Wachstum → Store-Präsenz → Haupt-Store-Eintrag**).
+   Alle Texte stehen fertig in `docs/store-texte.md` zum Kopieren:
+   - Kurzbeschreibung und vollständige Beschreibung von dort einfügen
+   - App-Symbol: `icons/icon-512.png`
+   - Feature-Grafik: `docs/store-grafiken/feature-grafik-1024x500.png`
+   - Telefon-Screenshots: die sechs Dateien aus `docs/store-grafiken/`
+     (`screenshot-1…6-1080x1920.png`)
+   - Kategorie: **Produktivität**
+4. Datenschutz-URL eintragen:
+   `https://marqewi.github.io/never2late/datenschutz.html`
 
-1. [play.google.com/console](https://play.google.com/console) → **App erstellen**
-2. Name: **SGT Soldaten-Grundfitness-Tool** (exakt 30 Zeichen) ·
-   Sprache Deutsch · **App** · **Kostenlos**
-3. Store-Eintrag: Texte aus `docs/store-texte.md` einfügen,
-   Icon `icons/icon-512.png`, Feature-Grafik 1024×500 mit Hintergrund **#5C663B**
-4. **Data Safety** ausfüllen (siehe Kurzreferenz in `docs/store-texte.md`);
-   „Gesundheit und Fitness“ NICHT ankreuzen
-5. Anzeigen: **Ja** · Werbe-ID: **Ja** · Zielgruppe: **18+**
-6. Datenschutz-URL: `https://marqewi.github.io/sgt-rechner/datenschutz.html`
+## 3. Die Formulare unter „Richtlinien → App-Inhalte“
 
-## 4. Einmalkauf-Produkt anlegen
+Hier ist Never2Late angenehm schnell abgehakt, weil die App nichts sammelt:
 
-Play Console → deine App → **Monetarisieren → Produkte → In-App-Produkte** →
-**Produkt erstellen**.
-
-**Schritt 1 – Produktdetails:**
-
-| Feld | Wert |
+| Formular | Antwort |
 |---|---|
-| Produkt-ID | `premium_unlock` (muss exakt so lauten – steht so im Code) |
-| Tags | leer lassen |
-| Name (max. 55) | `Premium freischalten` |
-| Beschreibung (max. 200) | `Entfernt die Werbung, hebt das Limit im Prüfermodus auf und schaltet Export und Druck der Ergebnisliste frei. Einmaliger Kauf, kein Abo.` |
-| Symbol | `docs/store-grafiken/produktsymbol-premium-512.png` (optional; enthält bewusst keinen Text und kein Branding – das App-Icon ist hier nicht zulässig) |
-| Produktsteuerkategorie | Voreinstellung **Verkäufe digitaler Apps** beibehalten |
-| Altersfreigabe | leer lassen (erbt die Einstufung der App) |
-| Beschränkungen des Zahlungsortes | unverändert lassen |
+| Datenschutzerklärung | die URL aus Schritt 1 |
+| Anzeigen | **Nein**, die App enthält keine Werbung |
+| App-Zugriff | Alle Funktionen ohne Einschränkung verfügbar (kein Login) |
+| Inhaltseinstufung | Fragebogen ausfüllen, alles verneinen → „Ab 0 Jahren“ |
+| Zielgruppe | **18 und älter**; „Für Kinder gedacht“: **Nein** |
+| Datensicherheit | siehe unten – die wichtigste Antwort ist ein Nein |
+| Staatliche App | Nein |
+| Finanzfunktionen | Nein |
+| Gesundheits-Apps | Nein |
 
-**Schritt 2 – Verfügbarkeit und Preisgestaltung:**
+**Datensicherheit im Detail:** Auf die erste Frage „Erhebt oder teilt deine App
+die erforderlichen Nutzerdatentypen?“ antwortest du **Nein**. Danach ist das
+Formular fertig. Alles bleibt auf dem Gerät, es gibt keinen Server.
 
-1. Kaufoption anlegen mit der ID `premium-unlock`
-2. Preis **2,99 €** setzen (Google rechnet die übrigen Währungen automatisch um)
-3. Produkt und Kaufoption **aktivieren**
+Die Berechtigung für **Benachrichtigungen** ist dabei keine Datenerhebung – die
+Erinnerungen werden komplett auf dem Handy berechnet. An der
+Datensicherheits-Erklärung ändert sie also nichts.
 
-Wichtig: Die Produkt-ID `premium_unlock` steht so in `index.html`
-(`Billing.PRODUCT`). Ein Tippfehler führt dazu, dass der Kauf-Knopf in der App
-meldet, der Kauf sei nicht verfügbar.
+## 4. Signieren & hochladen (Android Studio)
 
-## 5. Signieren & hochladen (Android Studio) – ausführlich
-
-### 5.1 Projekt auf den PC holen und vorbereiten
+### 4.1 Projekt auf den PC holen und vorbereiten
 
 1. Ordner für das Projekt wählen und in der Eingabeaufforderung (cmd) öffnen.
+   **Nicht** in einer als Administrator geöffneten Eingabeaufforderung
+   arbeiten – die startet in `C:\Windows\System32`, und dort gibt es später
+   schwer verständliche Rechtefehler. Ein Ordner unter `C:\Users\<dein Name>\`
+   ist richtig.
+
    Beim **ersten Mal** klonen:
    ```
-   git clone https://github.com/MarqEwi/sgt-rechner.git
-   cd sgt-rechner
+   git clone https://github.com/MarqEwi/never2late.git
+   cd never2late
    ```
    Wenn der Ordner schon existiert, stattdessen nur aktualisieren:
    ```
-   cd sgt-rechner
+   cd never2late
    git checkout main
    git pull
    ```
-2. Abhängigkeiten installieren (nur nötig, wenn `node_modules` fehlt oder sich
-   `package.json` geändert hat). Das `postinstall` mit patch-package läuft
-   dabei automatisch mit – es behebt einen Build-Fehler des AdMob-Plugins:
+2. Abhängigkeiten installieren (beim ersten Mal und immer, wenn sich
+   `package.json` geändert hat). Das `postinstall` mit patch-package läuft dabei
+   automatisch mit:
    ```
    npm install
    ```
@@ -99,11 +98,11 @@ meldet, der Kauf sei nicht verfügbar.
    npm run cap:sync
    ```
 
-### 5.2 Keystore hinterlegen (einmalig pro PC)
+### 4.2 Keystore hinterlegen (einmalig pro PC)
 
-1. Die vorhandene Keystore-Datei (derselbe Schlüssel wie bei BFT und PFT –
-   **niemals einen neuen erzeugen**, sonst lässt sich die App später nicht mehr
-   aktualisieren) in den Ordner `android/` kopieren, z. B. als `android.keystore`.
+1. Die vorhandene Keystore-Datei (**derselbe Schlüssel wie bei BFT, PFT und
+   SGT – niemals einen neuen erzeugen**) in den Ordner `android/` kopieren,
+   z. B. als `android.keystore`.
 2. Im Ordner `android/` die Datei `keystore.properties.example` kopieren und die
    Kopie in `keystore.properties` umbenennen (die Endung `.example` entfällt).
 3. Diese Datei im Editor öffnen und die vier Werte eintragen:
@@ -116,11 +115,14 @@ meldet, der Kauf sei nicht verfügbar.
    `keystore.properties` und `*.keystore` stehen in `.gitignore` und landen
    deshalb nie auf GitHub.
 
-### 5.3 Signiertes App Bundle bauen
+### 4.3 Signiertes App Bundle bauen
 
 1. Android Studio öffnen (aus dem Projektordner heraus geht auch
    `npm run cap:open`) und den Ordner `android` als Projekt laden.
    Beim ersten Start dauert die Gradle-Synchronisierung ein paar Minuten.
+   Meldet Android Studio „Unable to continue until an Android SDK is
+   specified“, im Dialog den vorhandenen SDK-Pfad angeben (meist
+   `C:\Users\<dein Name>\AppData\Local\Android\Sdk`).
 2. Menü **Build → Generate Signed App Bundle / APK…**
 3. **Android App Bundle** auswählen → *Next*.
 4. Keystore-Angaben eintragen (dieselben wie in `keystore.properties`):
@@ -132,68 +134,97 @@ meldet, der Kauf sei nicht verfügbar.
    android/app/release/app-release.aab
    ```
 
-### 5.4 In der Play Console hochladen
+### 4.4 In der Play Console hochladen
 
 1. Play Console → deine App → links **Testen und veröffentlichen → Tests →
-   Interner Test** (empfohlen für den ersten Upload; für die Monetarisierung
-   genügt ein Bundle in irgendeinem Track).
+   Interner Test**.
 2. **Neuen Release erstellen**.
 3. Beim ersten Mal fragt Google nach der **Play App-Signatur**: die
    Standardeinstellung („Von Google Play verwalteter Signaturschlüssel“)
    einfach bestätigen. Dein Keystore ist dann der Upload-Schlüssel.
 4. Die Datei `app-release.aab` hochladen.
-5. Release-Name kann bleiben; unter „Versionshinweise“ z. B. eintragen:
-   `Erste Version des SGT Rechners.`
+5. Unter „Versionshinweise“ z. B. eintragen:
+   `Erste Version von Never2Late.`
 6. **Speichern → Release überprüfen → Freigabe starten**.
 
-Nach diesem Upload kennt die Play Console den Paketnamen
-`de.mercwerk.sgtrechner`, und das In-App-Produkt aus Schritt 4 lässt sich
-anlegen.
+Der interne Test verlangt mindestens **einen Tester**, sonst lässt sich der
+Release nicht starten. Trag dich unter „Tester“ selbst ein.
 
-### 5.5 Bei jedem weiteren Upload
+### 4.5 Bei jedem weiteren Upload
 
-In `android/app/build.gradle` den `versionCode` um 1 erhöhen (aktuell `2`),
-bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach wieder
-`npm run cap:sync` und neu bauen.
+In `android/app/build.gradle` den `versionCode` um 1 erhöhen (steht aktuell auf
+`1`), bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach
+wieder `npm run cap:sync` und neu bauen. Sind mehrere Änderungen noch nicht
+hochgeladen, gehen sie in einem Build raus – dann steigt der `versionCode` nur
+einmal.
 
-## 5.6 Vor der Veröffentlichung: auf dem Handy testen
+## 5. Auf dem Handy testen
 
-1. **Lizenztester eintragen**, damit Testkäufe nichts kosten:
-   Play Console → ganz links oben aufs Haus (Alle Apps) → **Einstellungen →
-   Lizenztests** → eigene Google-Adresse hinzufügen → Lizenzantwort
-   **RESPOND_NORMALLY** → speichern.
-2. Im internen Test den **Einladungslink** öffnen (Reiter „Tester“), auf dem
-   Handy mit demselben Google-Konto annehmen und die App installieren.
-3. Auf dem Gerät prüfen:
-   - App startet ohne Absturz (heißt: die AdMob-App-ID im Manifest stimmt)
-   - Werbeleiste unten erscheint (oder bleibt leer, solange die AdMob-App noch
-     in Prüfung ist – siehe Abschnitt 2)
-   - Premium-Kauf lässt sich öffnen, Preis wird angezeigt, Kauf schaltet
-     werbefrei; „Käufe wiederherstellen“ funktioniert
-   - Diagnose bei Problemen: in den Einstellungen 5× auf die Versionsnummer
-     tippen, dann erscheinen Werbe- und Kauf-Status als Textzeilen
+Im internen Test den **Einladungslink** öffnen (Reiter „Tester“), auf dem Handy
+mit demselben Google-Konto annehmen und die App installieren. Dann durchgehen:
 
-## 5.7 In die Produktion veröffentlichen
+- App startet ohne Absturz
+- Einführung erscheint, danach fragt die App nach der Erlaubnis für
+  **Benachrichtigungen** → **Zulassen** tippen
+- Einen Testeintrag anlegen mit einem Datum in **2 Tagen** und einer Erinnerung
+  **1 Tag vorher** – am nächsten Morgen um 9 Uhr muss die Benachrichtigung
+  kommen
+- Bei einem Eintrag **„In Kalender“** antippen: das Teilen-Menü öffnet sich und
+  die Kalender-App übernimmt den Termin
+- **Einstellungen → Daten sichern**: das Teilen-Menü öffnet sich, Datei z. B. in
+  Google Drive ablegen; danach **Daten wiederherstellen** mit derselben Datei
+- Zurück-Taste: schließt erst offene Fenster, geht dann eine Ebene zurück und
+  verlangt auf der Startseite zweimaliges Drücken zum Verlassen
+- Handy neu starten und prüfen, dass die Erinnerung trotzdem noch kommt (das
+  Plugin stellt geplante Erinnerungen nach einem Neustart wieder her)
+
+**Wenn etwas nicht geht:** In den Einstellungen **5× auf die Versionsnummer
+tippen**. Darunter erscheinen dann Statuszeilen für Erinnerungen, Export,
+Werbung und Käufe. Schick mir den Text dieser Zeilen – daraus lässt sich meist
+sofort erkennen, woran es liegt.
+
+## 6. In die Produktion veröffentlichen
 
 1. Play Console → **Testen und veröffentlichen → Produktion → Neuen Release
    erstellen**.
 2. Statt neu hochzuladen: **„App-Bundles hinzufügen“ → aus der Bibliothek** das
-   bereits hochgeladene Bundle (versionCode 1) auswählen. Alternativ lässt sich
-   der interne Test über **„Release hochstufen → Produktion“** direkt übernehmen.
-3. Länder/Regionen auswählen (z. B. alle, oder nur Deutschland/Österreich/Schweiz).
-4. Versionshinweise eintragen, **Speichern → Release überprüfen →
-   Freigabe starten**.
+   bereits hochgeladene Bundle auswählen. Alternativ den internen Test über
+   **„Release hochstufen → Produktion“** direkt übernehmen.
+3. Länder/Regionen auswählen (z. B. Deutschland, Österreich, Schweiz).
+4. Versionshinweise eintragen, **Speichern → Release überprüfen → Freigabe
+   starten**.
 5. Die Prüfung durch Google dauert bei neuen Apps üblicherweise einige Stunden
-   bis wenige Tage. Danach ist die App im Play Store sichtbar.
+   bis wenige Tage.
 
 Hinweis: Falls die Play Console vor der Produktion einen **geschlossenen Test
 mit 12 Testern über 14 Tage** verlangt, betrifft das neuere private
 Entwicklerkonten. Dann zuerst diesen Test durchlaufen lassen; an der App selbst
 ändert sich dadurch nichts.
 
-## 6. Nach der AdMob-Freigabe
+## 7. Später: Monetarisierung (jetzt nichts zu tun)
 
-Die echten IDs sind bereits eingebaut (`TESTING: false`, Banner-ID in
-`ADS_CONF`, App-ID im `AndroidManifest.xml`). Die Freigabe passiert allein auf
-Googles Seite – ein neuer Build ist dafür **nicht** nötig. Sobald AdMob die App
-freigegeben hat, erscheinen die Banner von selbst.
+V1 ist bewusst ohne Werbung und ohne Kauf. Der Code dafür liegt vorbereitet
+bereit und ist über je einen Schalter abgeschaltet. Wenn du das später
+aktivieren willst, sind das die Schritte – **erst dann**, nicht jetzt:
+
+1. **AdMob:** auf [admob.google.com](https://admob.google.com) im selben Konto
+   eine neue App **Never2Late** anlegen. Die App-ID (`ca-app-pub-…~…`) ersetzt
+   im `android/app/src/main/AndroidManifest.xml` die dort eingetragene
+   Google-Test-App-ID. **Dieser Eintrag darf nie leer sein – fehlt er, stürzt
+   die App beim Start ab.** Dann einen Banner-Block anlegen und dessen ID
+   (`ca-app-pub-…/…`) in `index.html` bei `ADS_CONF.BANNER_ID` eintragen,
+   `ADS_CONF.ENABLED` auf `true` und `TESTING` auf `false` setzen.
+   Neue AdMob-Apps liefern anfangs oft „code 3 / not approved“ – das ist die
+   normale Prüfzeit und kein Fehler.
+2. **Kaufprodukt:** In der Play Console unter **Monetarisieren → Produkte →
+   In-App-Produkte** ein Produkt mit der Produkt-ID `premium_unlock` anlegen
+   (mit Unterstrich) und darin eine Kaufoption mit der ID `premium-unlock`
+   (mit Bindestrich – Unterstriche sind dort nicht erlaubt). Im Code dann
+   `Billing.ENABLED` und `Edition.PREMIUM_VERFUEGBAR` auf `true` setzen.
+   Die Produkt-ID lässt sich nach dem Anlegen **nicht mehr ändern**.
+3. **Datenschutzerklärung und Data-Safety-Formular anpassen:** Mit Werbung
+   ändern sich beide. In `datenschutz.html` muss dann wieder ein Abschnitt zu
+   AdMob hinein, und im Formular „Anzeigen“ wird aus dem Nein ein Ja.
+4. **Lizenztester eintragen**, sonst kostet ein Testkauf echtes Geld:
+   Play Console → Haus-Symbol (Alle Apps) → **Einstellungen → Lizenztests** →
+   eigene Google-Adresse hinzufügen → **RESPOND_NORMALLY**.
