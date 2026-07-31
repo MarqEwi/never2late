@@ -10,14 +10,14 @@ if (keystorePropsFile.exists()) {
 }
 
 android {
-    namespace = "de.mercwerk.sgtrechner"
+    namespace = "de.mercwerk.never2late"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "de.mercwerk.sgtrechner"
+        applicationId "de.mercwerk.never2late"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0.2"
+        versionCode 1
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

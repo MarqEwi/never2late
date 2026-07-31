@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SGT Rechner</string>
-    <string name="title_activity_main">SGT Rechner</string>
-    <string name="package_name">de.mercwerk.sgtrechner</string>
-    <string name="custom_url_scheme">de.mercwerk.sgtrechner</string>
+    <string name="app_name">Never2Late</string>
+    <string name="title_activity_main">Never2Late</string>
+    <string name="package_name">de.mercwerk.never2late</string>
+    <string name="custom_url_scheme">de.mercwerk.never2late</string>
 </resources>
