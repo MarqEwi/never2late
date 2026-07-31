@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SGT Rechner</string>
+    <string name="title_activity_main">SGT Rechner</string>
+    <string name="package_name">de.mercwerk.sgtrechner</string>
+    <string name="custom_url_scheme">de.mercwerk.sgtrechner</string>
+</resources>

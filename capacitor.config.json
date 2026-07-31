@@ -1,0 +1,14 @@
+{
+  "appId": "de.mercwerk.sgtrechner",
+  "appName": "SGT Rechner",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "android.keystore",
+      "releaseType": "APK"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+	"appId": "de.mercwerk.sgtrechner",
+	"appName": "SGT Rechner",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {}
+}

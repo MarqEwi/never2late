@@ -1,0 +1,27 @@
+{
+  "name": "sgt-rechner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SGT Rechner – inoffizieller Zeitrechner für das Soldaten-Grundfitness-Tool der Bundeswehr (Web + Capacitor-App)",
+  "scripts": {
+    "sync-www": "node scripts/sync-www.mjs",
+    "sync": "npm run sync-www",
+    "cap:sync": "npm run sync-www && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.0.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "cordova-plugin-purchase": "^13.18.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@playwright/test": "^1.62.0",
+    "patch-package": "^8.0.1"
+  }
+}
