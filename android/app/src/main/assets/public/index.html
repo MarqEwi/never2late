@@ -2157,9 +2157,16 @@ $("ob-next").addEventListener("click", () => { if (obStep === 2) obFinish(); els
 $("ob-skip").addEventListener("click", obFinish);
 $("s-onboarding").addEventListener("click", () => { closeModal("modal-settings"); obShow(0); openModal("modal-onboarding"); });
 
-/* ---------- Zurück-Taste (Android) -------------------------------------
-   Erst das oberste Fenster schließen, dann eine Ebene zurück, dann Hinweis;
-   erst ein zweites Drücken innerhalb von 2,5 s beendet die App.         */
+/* ---------- Zurück-Taste ------------------------------------------------
+   Gleiches Verhalten in der App und im Browser: erst das oberste Fenster
+   schließen, dann eine Ebene zurück, dann ein Hinweis; erst ein zweites
+   Drücken innerhalb von 2,5 s verlässt die App.
+
+   In der Android-App liefert @capacitor/app das Ereignis "backButton".
+   Im Browser gibt es das nicht – dort würde die Zurück-Taste die Seite
+   sofort verlassen, mit offenem Dialog und allem. Deshalb legt die
+   Web-Variante über die History-API einen Puffereintrag an, den jede
+   Zurück-Geste zuerst verbraucht (siehe unten).                         */
 const EXIT_FENSTER_MS = 2500;
 let exitHinweisBis = 0;
 function handleBack(){
@@ -2188,6 +2195,24 @@ if (Bridge.isNative()){
   const app = Bridge.plugin("App");
   if (app && app.addListener) app.addListener("backButton", onBackButton);
   else console.warn("[Back] App-Plugin nicht gefunden – Zurück-Taste unbehandelt");
+} else {
+  /* Web: Ein zusätzlicher History-Eintrag dient als Puffer. Jede
+     Zurück-Geste verbraucht ihn, wir fangen sie in popstate ab und legen
+     den Puffer danach neu an. Erst wenn nichts mehr zu schließen ist und
+     der Hinweis schon stand, lassen wir die Seite wirklich los. */
+  const historyPuffer = () => { try { history.pushState({ n2l: 1 }, ""); } catch(e){} };
+  historyPuffer();
+  window.addEventListener("popstate", () => {
+    if (handleBack()){ exitHinweisBis = 0; historyPuffer(); return; }
+    if (Date.now() < exitHinweisBis){
+      exitHinweisBis = 0;
+      history.back();   /* eine Ebene weiter zurück – verlässt die Seite */
+      return;
+    }
+    exitHinweisBis = Date.now() + EXIT_FENSTER_MS;
+    toast("Zum Verlassen der App erneut „Zurück“ drücken");
+    historyPuffer();
+  });
 }
 
 /* ---------- Service Worker: nur im Web, nie in der App ---------- */
