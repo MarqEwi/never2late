@@ -325,6 +325,43 @@ test("Zurück führt Schritt für Schritt zurück zur Startseite", async ({ page
   await expect(page.locator("#btn-back")).toBeHidden();
 });
 
+test("Browser-Zurück schließt Fenster, geht zurück und warnt vorm Verlassen", async ({ page }) => {
+  await eintragAnlegen(page, { titel: "Testeintrag", datum: inTagen(100) });
+
+  // 1. offenes Fenster schließen – die Seite bleibt stehen
+  await page.click("#btn-settings");
+  await expect(page.locator("#modal-settings")).toHaveClass(/open/);
+  await page.goBack();
+  await expect(page.locator("#modal-settings")).not.toHaveClass(/open/);
+  await expect(page.locator("#view-detail")).toHaveClass(/active/);
+
+  // 2. eine Ebene zurück (Detail -> Start)
+  await page.goBack();
+  await expect(page.locator("#view-home")).toHaveClass(/active/);
+
+  // 3. nichts mehr offen: erst der Hinweis, die App läuft weiter
+  await page.goBack();
+  await expect(page.locator("#toast")).toHaveClass(/show/);
+  await expect(page.locator("#toast")).toContainText("erneut");
+  await expect(page.locator("#view-home")).toHaveClass(/active/);
+  expect(await page.evaluate(() => !!window.N2L)).toBe(true);
+});
+
+test("Browser-Zurück schließt gestapelte Fenster einzeln", async ({ page }) => {
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  await expect(page.locator("#modal-kategorie")).toHaveClass(/open/);
+
+  // Der Kategorie-Dialog liegt über den Einstellungen: erst er, dann die.
+  await page.goBack();
+  await expect(page.locator("#modal-kategorie")).not.toHaveClass(/open/);
+  await expect(page.locator("#modal-settings")).toHaveClass(/open/);
+
+  await page.goBack();
+  await expect(page.locator("#modal-settings")).not.toHaveClass(/open/);
+  await expect(page.locator("#view-home")).toHaveClass(/active/);
+});
+
 test("Löschen entfernt den Eintrag und kehrt zur Übersicht zurück", async ({ page }) => {
   page.on("dialog", d => d.accept());
   await eintragAnlegen(page, { titel: "Weg damit", datum: inTagen(100) });
