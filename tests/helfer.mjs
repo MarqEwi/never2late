@@ -54,11 +54,13 @@ export function capacitorMock(){
   };
 }
 
-/* Legt einen Eintrag über die Oberfläche an. */
-export async function eintragAnlegen(page, { titel, kategorie = "ausweise", datum, typ = "ablauf" }){
+/* Legt einen Eintrag über die Oberfläche an.
+   `kategorie` nimmt eine einzelne, `kategorien` mehrere Kategorien. */
+export async function eintragAnlegen(page, { titel, kategorie, kategorien, datum, typ = "ablauf" }){
+  const kats = kategorien || [kategorie || "ausweise"];
   await page.click("#btn-neu");
   await page.fill("#f-titel", titel);
-  await page.click(`#f-kategorie button[data-k="${kategorie}"]`);
+  for (const k of kats) await page.click(`#f-kategorie button[data-k="${k}"]`);
   await page.click(`#f-datumstyp button[data-v="${typ}"]`);
   await page.fill("#f-datum", datum);
   await page.click("#f-speichern");

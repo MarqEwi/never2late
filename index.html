@@ -124,7 +124,9 @@
   .row .pill .dot{width:7px;height:7px}
   .row:hover{background:var(--bg3)}
   .row .kat{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
-    font-size:1.15rem;background:var(--bg3);flex:none}
+    font-size:1.15rem;background:var(--bg3);flex:none;position:relative}
+  .row .kat .mehr{position:absolute;right:-3px;bottom:-3px;background:var(--accent);color:var(--accent-text);
+    font-style:normal;font-size:.6rem;font-weight:700;border-radius:999px;padding:1px 4px;line-height:1.35}
   .row .mid{flex:1;min-width:0}
   /* display:block ist hier wesentlich: als Inline-Spans stünden Titel und
      Untertitel nebeneinander und würden aus der Zeile herauslaufen. */
@@ -174,6 +176,35 @@
     display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.2}
   .katgrid button .e{font-size:1.25rem}
   .katgrid button.active{border-color:var(--accent);background:var(--accent-soft);color:var(--text);font-weight:650}
+  .katgrid button.active::after{content:"✓";position:absolute;top:3px;right:5px;font-size:.66rem;
+    color:var(--accent);font-weight:800}
+  .katgrid button{position:relative}
+  .katgrid button.neu{border-style:dashed;color:var(--accent)}
+  /* Kategorie-Marken (Detailansicht) */
+  .katchips{display:flex;flex-wrap:wrap;gap:6px}
+  .katchip{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border-radius:999px;
+    padding:4px 11px;font-size:.84rem}
+  /* Emoji-Auswahl */
+  .emojiwahl{display:flex;align-items:center;gap:10px;margin-top:5px}
+  .emojiwahl .gross{width:52px;height:52px;border-radius:14px;background:var(--bg3);
+    display:grid;place-items:center;font-size:1.7rem;flex:none}
+  .emojiwahl input{flex:1;text-align:center;font-size:1.1rem}
+  .emojigrid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:9px;
+    max-height:184px;overflow-y:auto;padding:3px;border:1px solid var(--line);border-radius:12px}
+  @media(max-width:400px){.emojigrid{grid-template-columns:repeat(7,1fr)}}
+  .emojigrid button{background:transparent;border:1px solid transparent;border-radius:9px;
+    font-size:1.25rem;padding:5px 0;cursor:pointer;line-height:1.2}
+  .emojigrid button:hover{background:var(--bg3)}
+  .emojigrid button.active{border-color:var(--accent);background:var(--accent-soft)}
+  /* Kategorienverwaltung in den Einstellungen */
+  .katverwaltung{list-style:none;margin:6px 0 0;padding:0}
+  .katverwaltung li{display:flex;align-items:center;gap:11px;padding:9px 2px;border-top:1px solid var(--line)}
+  .katverwaltung .e{font-size:1.2rem}
+  .katverwaltung .n{flex:1;font-size:.94rem}
+  .katverwaltung .anz{font-size:.78rem;color:var(--text2)}
+  .katverwaltung button{background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;line-height:0}
+  .katverwaltung button:hover{color:var(--accent)}
+  .katverwaltung .loesch:hover{color:var(--bad)}
   .quickdates{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
   /* ---------- Erinnerungs-Editor ---------- */
   .remlist{list-style:none;margin:7px 0 0;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -334,8 +365,9 @@
       <input type="text" id="f-titel" maxlength="80" placeholder="z. B. Personalausweis" autocomplete="off">
       <p class="err" id="f-titel-err">Bitte gib einen Titel ein.</p>
 
-      <label class="field">Kategorie <span class="req">*</span></label>
+      <label class="field">Kategorien <span class="req">*</span></label>
       <div class="katgrid" id="f-kategorie"></div>
+      <p class="hint">Mehrfachauswahl möglich – tippe alles an, was passt.</p>
 
       <label class="field">Art des Datums</label>
       <div class="seg" id="f-datumstyp">
@@ -448,6 +480,13 @@
     </div>
     <p class="diag" id="notif-status"></p>
 
+    <h3>Eigene Kategorien</h3>
+    <ul class="katverwaltung" id="s-kategorien"></ul>
+    <button class="settings-row" id="s-kat-neu">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M12 9v6M9 12h6"/></svg>
+      <span class="t"><b>Kategorie hinzufügen</b><span>Eigener Name und Symbol</span></span>
+    </button>
+
     <h3>Daten</h3>
     <button class="settings-row" id="s-export">
       <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 21h16"/></svg>
@@ -480,6 +519,33 @@
     <p class="diag" id="ads-status"></p>
     <p class="diag" id="buy-status"></p>
     <p class="ver" id="s-version">v1.0.0</p>
+  </div>
+</div>
+
+<!-- ======================= Dialog: Kategorie ======================= -->
+<div class="modal-back" id="modal-kategorie">
+  <div class="modal">
+    <button class="modal-x" data-close="modal-kategorie" aria-label="Schließen">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <h3 class="mt"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M12 9v6M9 12h6"/></svg> <span id="kat-dlg-titel">Neue Kategorie</span></h3>
+
+    <label class="field" for="kat-name">Name</label>
+    <input type="text" id="kat-name" maxlength="24" placeholder="z. B. Haustier, Wohnung, Studium" autocomplete="off">
+
+    <label class="field">Symbol</label>
+    <div class="emojiwahl">
+      <span class="gross" id="kat-emoji-gross" aria-hidden="true">📌</span>
+      <input type="text" id="kat-emoji" maxlength="8" aria-label="Eigenes Symbol">
+    </div>
+    <p class="hint">Eins aus der Auswahl antippen – oder ein beliebiges Emoji ins Feld einfügen.</p>
+    <div class="emojigrid" id="kat-emojis"></div>
+    <p class="err" id="kat-err"></p>
+
+    <div class="btn-row">
+      <button class="btn" id="kat-ok" style="flex:1">Speichern</button>
+      <button class="btn secondary" data-close="modal-kategorie">Abbrechen</button>
+    </div>
   </div>
 </div>
 
@@ -555,8 +621,18 @@ const $ = id => document.getElementById(id);
    ========================================================================= */
 const Core = {
 
-  /* ---- Feste Kategorien (V1). Pro Eintrag genau eine, Pflichtfeld. ---- */
-  KATEGORIEN: [
+  /* ---- Kategorien -------------------------------------------------------
+     Acht mitgelieferte Kategorien plus beliebig viele eigene. Ein Eintrag
+     kann mehreren Kategorien angehören, mindestens einer.
+
+     `eigene` wird vom Kategorien-Modul (Datenebene) gefüllt – der Core
+     bleibt dadurch frei von Speicherzugriffen, ist aber trotzdem die
+     einzige Stelle, an der Kategorien nachgeschlagen werden. Wichtig für
+     die Startreihenfolge: Kategorien.laden() muss vor Daten.laden()
+     laufen, sonst kennt die Normalisierung die eigenen IDs noch nicht und
+     würde sie verwerfen. ---- */
+  eigene: [],
+  KATEGORIEN_FEST: [
     { id: "ausweise",   label: "Ausweise",   emoji: "🪪", beispiele: "Personalausweis, Reisepass, Aufenthaltstitel" },
     { id: "karten",     label: "Karten",     emoji: "💳", beispiele: "EC-Karte, Kreditkarte, Gesundheitskarte, Mitgliedskarte" },
     { id: "beruflich",  label: "Beruflich",  emoji: "💼", beispiele: "Kompetenzerhalt, Zertifikate, Lizenzen, Fortbildungen" },
@@ -566,7 +642,17 @@ const Core = {
     { id: "vertraege",  label: "Verträge",   emoji: "📄", beispiele: "Versicherungen, Garantien, Gutscheine, Abos" },
     { id: "sonstiges",  label: "Sonstiges",  emoji: "📌", beispiele: "alles Weitere mit Frist" }
   ],
-  kategorie(id){ return this.KATEGORIEN.find(k => k.id === id) || this.KATEGORIEN[this.KATEGORIEN.length - 1]; },
+  kategorien(){ return this.KATEGORIEN_FEST.concat(this.eigene); },
+  /* Liefert null bei unbekannter ID – die Behandlung übernimmt kategorienVon. */
+  kategorie(id){ return this.kategorien().find(k => k.id === id) || null; },
+  /* Die Kategorien eines Eintrags als Objekte, in der Reihenfolge der
+     Gesamtliste (feste zuerst), damit die Anzeige nicht springt. */
+  kategorienVon(e){
+    const ids = (e && e.kategorien) || [];
+    const arr = this.kategorien().filter(k => ids.indexOf(k.id) >= 0);
+    return arr.length ? arr : [this.kategorien().find(k => k.id === "sonstiges")];
+  },
+  katLabels(e){ return this.kategorienVon(e).map(k => k.label).join(", "); },
 
   /* ---- Datumstypen. Bestimmen nur die Beschriftung und den Meldungstext,
          nicht die Berechnung – die ist für alle Typen dieselbe. ---- */
@@ -685,7 +771,7 @@ const Core = {
     const wann = tage === 0 ? "heute" : tage === 1 ? "morgen" : "in " + tage + " Tagen";
     return {
       titel: e.titel + " " + t.vor + " " + wann + " " + t.nach,
-      text: this.kategorie(e.kategorie).label + " · " + t.kurz + " " + this.fmtDatum(e.datum)
+      text: this.katLabels(e) + " · " + t.kurz + " " + this.fmtDatum(e.datum)
     };
   },
   /* Stabile, positive 32-Bit-Kennung je Eintrag und Erinnerung. Gleiche
@@ -743,7 +829,13 @@ const Core = {
   normalisieren(roh){
     const e = roh && typeof roh === "object" ? roh : {};
     const jetzt = new Date().toISOString();
-    const katOk = this.KATEGORIEN.some(k => k.id === e.kategorie);
+    /* Kategorien: Array ab Schema 2, davor ein einzelnes Feld `kategorie`.
+       Beide Formen werden hier auf das Array normalisiert, unbekannte IDs
+       fallen weg, und ohne Rest bleibt "Sonstiges" übrig. */
+    let kats = Array.isArray(e.kategorien) ? e.kategorien.slice()
+      : typeof e.kategorie === "string" ? [e.kategorie] : [];
+    kats = kats.filter((id, i) => kats.indexOf(id) === i && !!this.kategorie(id));
+    if (!kats.length) kats = ["sonstiges"];
     const typOk = !!this.DATUMSTYPEN[e.datumstyp];
     let wdh = this.WIEDERHOLUNGEN[e.wiederholung] ? e.wiederholung : "keine";
     const typ = typOk ? e.datumstyp : "ablauf";
@@ -764,7 +856,7 @@ const Core = {
     return {
       id: typeof e.id === "string" && e.id ? e.id : this.neueId(),
       titel: String(e.titel == null ? "" : e.titel).trim().slice(0, 80),
-      kategorie: katOk ? e.kategorie : "sonstiges",
+      kategorien: kats,
       datumstyp: typ,
       datum: this.istIso(e.datum) ? e.datum : this.heute(),
       wiederholung: wdh,
@@ -794,9 +886,112 @@ function load(key, fallback){
   catch(e){ return fallback; }
 }
 
+/* ---------- Eigene Kategorien ------------------------------------------
+   Die acht mitgelieferten Kategorien stehen im Core und lassen sich nicht
+   löschen. Alles Weitere legt die Nutzerin selbst an; gespeichert werden
+   nur die eigenen. Die IDs bekommen das Präfix "eigen-", damit sie nie mit
+   einer festen kollidieren – auch dann nicht, wenn später eine feste
+   Kategorie dazukommt.                                                    */
+const Kategorien = {
+  KEY: "n2l_kategorien",
+  MAX: 40,
+
+  laden(){
+    const roh = load(this.KEY, []);
+    Core.eigene = (Array.isArray(roh) ? roh : [])
+      .map(k => this.normalisieren(k)).filter(Boolean).slice(0, this.MAX);
+    return Core.eigene;
+  },
+  speichern(){ store(this.KEY, Core.eigene); },
+
+  normalisieren(k){
+    if (!k || typeof k !== "object") return null;
+    const id = String(k.id || "");
+    const label = String(k.label == null ? "" : k.label).trim().slice(0, 24);
+    if (!/^eigen-[a-z0-9-]+$/.test(id) || !label) return null;
+    return { id, label, emoji: this.emojiPruefen(k.emoji), eigen: true };
+  },
+  /* Genau ein Zeichen als Symbol. Emoji können aus mehreren Codepoints
+     bestehen (Hautfarbe, Variantenselektor, ZWJ-Folgen), deshalb wird nicht
+     auf Länge 1 geprüft, sondern auf ein einzelnes Graphem. */
+  emojiPruefen(v){
+    const s = String(v == null ? "" : v).trim();
+    if (!s) return "📌";
+    const zeichen = Array.from(s);
+    if (!zeichen.length) return "📌";
+    /* Ab dem zweiten sichtbaren Zeichen abschneiden – Verbinder und
+       Modifikatoren gehören noch zum ersten. */
+    let ende = 1;
+    while (ende < zeichen.length && /[‍️\u{1f3fb}-\u{1f3ff}\u{e0020}-\u{e007f}]/u.test(zeichen[ende - 1] + zeichen[ende])) ende++;
+    return zeichen.slice(0, Math.min(ende, 8)).join("");
+  },
+
+  neueId(label){
+    const basis = "eigen-" + (label.toLowerCase()
+      .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "kategorie");
+    let id = basis, n = 1;
+    while (Core.kategorie(id)) id = basis + "-" + (++n);
+    return id;
+  },
+
+  /* Legt eine Kategorie an und gibt sie zurück; wirft bei ungültiger Eingabe. */
+  hinzufuegen(label, emoji){
+    const name = String(label == null ? "" : label).trim().slice(0, 24);
+    if (!name) throw new Error("Bitte einen Namen eingeben.");
+    if (Core.kategorien().some(k => k.label.toLowerCase() === name.toLowerCase()))
+      throw new Error("Es gibt schon eine Kategorie mit diesem Namen.");
+    if (Core.eigene.length >= this.MAX)
+      throw new Error("Mehr als " + this.MAX + " eigene Kategorien sind nicht vorgesehen.");
+    const k = { id: this.neueId(name), label: name, emoji: this.emojiPruefen(emoji), eigen: true };
+    Core.eigene.push(k);
+    this.speichern();
+    return k;
+  },
+
+  umbenennen(id, label, emoji){
+    const k = Core.eigene.find(x => x.id === id);
+    if (!k) return null;
+    const name = String(label == null ? "" : label).trim().slice(0, 24);
+    if (!name) throw new Error("Bitte einen Namen eingeben.");
+    if (Core.kategorien().some(x => x.id !== id && x.label.toLowerCase() === name.toLowerCase()))
+      throw new Error("Es gibt schon eine Kategorie mit diesem Namen.");
+    k.label = name;
+    k.emoji = this.emojiPruefen(emoji);
+    this.speichern();
+    return k;
+  },
+
+  /* Löschen zieht die Einträge mit: Die Kategorie fliegt überall raus, und
+     wer dadurch ohne Kategorie dastünde, bekommt "Sonstiges". Sonst
+     verwiese ein Eintrag auf eine ID, die es nicht mehr gibt. */
+  entfernen(id){
+    if (!Core.eigene.some(k => k.id === id)) return 0;
+    Core.eigene = Core.eigene.filter(k => k.id !== id);
+    this.speichern();
+    let betroffen = 0;
+    Daten.alle().forEach(e => {
+      if (e.kategorien.indexOf(id) < 0) return;
+      betroffen++;
+      e.kategorien = e.kategorien.filter(x => x !== id);
+      if (!e.kategorien.length) e.kategorien = ["sonstiges"];
+      e.geaendertAm = new Date().toISOString();
+    });
+    if (betroffen) Daten.speichern();
+    return betroffen;
+  },
+
+  /* Wie viele Einträge hängen an dieser Kategorie? (für die Rückfrage) */
+  anzahl(id){ return Daten.alle().filter(e => e.kategorien.indexOf(id) >= 0).length; },
+
+  alleLoeschen(){ Core.eigene = []; this.speichern(); }
+};
+
 const Daten = {
   KEY: "n2l_daten",
-  SCHEMA: 1,          /* wird bei künftigen Formatänderungen erhöht */
+  /* 1 = eine Kategorie je Eintrag (Feld `kategorie`)
+     2 = mehrere Kategorien je Eintrag (Feld `kategorien`) */
+  SCHEMA: 2,
   liste: [],
 
   laden(){
@@ -852,11 +1047,22 @@ const Daten = {
 
   /* ---- Sicherung (Datei) ---- */
   exportObjekt(){
-    return { app: "Never2Late", v: this.SCHEMA, exportiertAm: new Date().toISOString(), eintraege: this.liste };
+    /* Die eigenen Kategorien gehören mit in die Sicherung – ohne sie
+       zeigten die wiederhergestellten Einträge auf IDs, die es nicht gibt. */
+    return { app: "Never2Late", v: this.SCHEMA, exportiertAm: new Date().toISOString(),
+             kategorien: Core.eigene, eintraege: this.liste };
   },
   importObjekt(obj){
     const arr = obj && Array.isArray(obj.eintraege) ? obj.eintraege : null;
     if (!arr) throw new Error("Die Datei enthält keine Never2Late-Einträge.");
+    /* Erst die eigenen Kategorien wiederherstellen, dann die Einträge:
+       sonst kennt die Normalisierung deren IDs nicht und ersetzt sie
+       durch "Sonstiges". */
+    if (Array.isArray(obj.kategorien)){
+      Core.eigene = obj.kategorien.map(k => Kategorien.normalisieren(k))
+        .filter(Boolean).slice(0, Kategorien.MAX);
+      Kategorien.speichern();
+    }
     this.liste = arr.map(e => Core.normalisieren(e));
     this.speichern();
     return this.liste.length;
@@ -867,23 +1073,24 @@ const Daten = {
   beispieleLaden(){
     const h = Core.heute();
     const b = [
-      { titel: "Personalausweis", kategorie: "ausweise", datumstyp: "ablauf", datum: Core.addTage(h, 47),
+      { titel: "Personalausweis", kategorien: ["ausweise"], datumstyp: "ablauf", datum: Core.addTage(h, 47),
         referenz: "L01X00T47", notiz: "Bürgerbüro, Termin vorher online buchen" },
-      { titel: "Reisepass", kategorie: "ausweise", datumstyp: "ablauf", datum: Core.addTage(h, 890) },
-      { titel: "EC-Karte Girokonto", kategorie: "karten", datumstyp: "ablauf", datum: Core.addTage(h, 5),
+      { titel: "Reisepass", kategorien: ["ausweise", "reisen"], datumstyp: "ablauf", datum: Core.addTage(h, 890) },
+      { titel: "EC-Karte Girokonto", kategorien: ["karten"], datumstyp: "ablauf", datum: Core.addTage(h, 5),
         notiz: "Neue Karte kommt automatisch per Post" },
-      { titel: "Kompetenzerhalt Theorie", kategorie: "beruflich", datumstyp: "wiederkehrend",
+      { titel: "Kompetenzerhalt Theorie", kategorien: ["beruflich"], datumstyp: "wiederkehrend",
         datum: Core.addTage(h, -12), wiederholung: "jaehrlich", notiz: "Jährlicher Nachweis" },
-      { titel: "Erste-Hilfe-Schein", kategorie: "beruflich", datumstyp: "ablauf", datum: Core.addTage(h, 210) },
-      { titel: "TÜV / Hauptuntersuchung", kategorie: "fahrzeug", datumstyp: "faellig", datum: Core.addTage(h, 63),
+      { titel: "Erste-Hilfe-Schein", kategorien: ["beruflich", "gesundheit"], datumstyp: "ablauf",
+        datum: Core.addTage(h, 210) },
+      { titel: "TÜV / Hauptuntersuchung", kategorien: ["fahrzeug"], datumstyp: "faellig", datum: Core.addTage(h, 63),
         referenz: "M-XY 1234" },
-      { titel: "Führerschein", kategorie: "fahrzeug", datumstyp: "ablauf", datum: Core.addTage(h, 1500) },
-      { titel: "Zahnvorsorge", kategorie: "gesundheit", datumstyp: "wiederkehrend", datum: Core.addTage(h, 120),
+      { titel: "Führerschein", kategorien: ["fahrzeug", "ausweise"], datumstyp: "ablauf", datum: Core.addTage(h, 1500) },
+      { titel: "Zahnvorsorge", kategorien: ["gesundheit"], datumstyp: "wiederkehrend", datum: Core.addTage(h, 120),
         wiederholung: "halbjaehrlich" },
-      { titel: "Visum USA (ESTA)", kategorie: "reisen", datumstyp: "ablauf", datum: Core.addTage(h, -30) },
-      { titel: "Hausratversicherung kündbar bis", kategorie: "vertraege", datumstyp: "faellig",
+      { titel: "Visum USA (ESTA)", kategorien: ["reisen"], datumstyp: "ablauf", datum: Core.addTage(h, -30) },
+      { titel: "Hausratversicherung kündbar bis", kategorien: ["vertraege"], datumstyp: "faellig",
         datum: Core.addTage(h, 25), referenz: "HR-889221" },
-      { titel: "Garantie Waschmaschine", kategorie: "vertraege", datumstyp: "ablauf", datum: Core.addTage(h, 380) }
+      { titel: "Garantie Waschmaschine", kategorien: ["vertraege"], datumstyp: "ablauf", datum: Core.addTage(h, 380) }
     ];
     b.forEach(x => this.liste.push(Core.normalisieren(x)));
     this.speichern();
@@ -1119,7 +1326,7 @@ const Kalender = {
     const kompakt = iso => iso.replace(/-/g, "");
     const titel = e.titel + " – " + (e.datumstyp === "ablauf" ? "läuft ab" : "fällig");
     const beschreibung = [
-      Core.kategorie(e.kategorie).label,
+      Core.katLabels(e),
       e.referenz ? "Nummer: " + e.referenz : "",
       e.notiz || "",
       "Erstellt mit Never2Late"
@@ -1355,13 +1562,16 @@ function statusPill(st){
 }
 function zeileHtml(e, heute){
   const st = Core.status(e, heute, Einst.werte.vorwarnTage);
-  const kat = Core.kategorie(e.kategorie);
+  const kats = Core.kategorienVon(e);
   const typ = Core.datumstyp(e.datumstyp);
   const wdh = e.wiederholung !== "keine" ? " · " + Core.WIEDERHOLUNGEN[e.wiederholung].label : "";
+  /* In der Zeile ist wenig Platz: das Symbol der ersten Kategorie, und bei
+     mehreren ein kleiner Zähler statt einer Reihe von Emoji. */
+  const symbol = kats[0].emoji + (kats.length > 1 ? '<i class="mehr">+' + (kats.length - 1) + "</i>" : "");
   return '<li><button class="row' + (e.archiviert ? " is-archiviert" : "") + '" data-detail="' + e.id + '">'
-    + '<span class="kat" aria-hidden="true">' + kat.emoji + "</span>"
+    + '<span class="kat" aria-hidden="true">' + symbol + "</span>"
     + '<span class="mid"><span class="tit">' + esc(e.titel) + "</span>"
-    + '<span class="sub">' + esc(kat.label) + " · " + typ.kurz + " " + Core.fmtDatum(e.datum) + wdh + "</span></span>"
+    + '<span class="sub">' + esc(Core.katLabels(e)) + " · " + typ.kurz + " " + Core.fmtDatum(e.datum) + wdh + "</span></span>"
     + '<span class="right">' + statusPill(st)
     + '<span class="rest">' + (e.archiviert ? "" : Core.fmtRest(e.datum, heute)) + "</span></span>"
     + "</button></li>";
@@ -1452,8 +1662,8 @@ function renderFilterChips(){
   $("filter-status").innerHTML = stFilter.map(s =>
     '<button class="chip' + (filter.status === s.id ? " active" : "") + '" data-st="' + s.id + '">' + s.label + "</button>").join("");
   $("filter-kategorie").innerHTML = '<button class="chip' + (filter.kategorie === "alle" ? " active" : "") + '" data-kat="alle">Alle Kategorien</button>'
-    + Core.KATEGORIEN.map(k => '<button class="chip' + (filter.kategorie === k.id ? " active" : "") + '" data-kat="' + k.id + '">'
-      + k.emoji + " " + k.label + "</button>").join("");
+    + Core.kategorien().map(k => '<button class="chip' + (filter.kategorie === k.id ? " active" : "") + '" data-kat="' + k.id + '">'
+      + k.emoji + " " + esc(k.label) + "</button>").join("");
   $("filter-status").querySelectorAll("[data-st]").forEach(b =>
     b.addEventListener("click", () => { filter.status = b.dataset.st; render(); }));
   $("filter-kategorie").querySelectorAll("[data-kat]").forEach(b =>
@@ -1468,7 +1678,8 @@ function gefiltert(){
     const st = Core.status(e, heute, fb);
     if (filter.status === "alle") { if (e.archiviert) return false; }
     else if (st !== filter.status) return false;
-    if (filter.kategorie !== "alle" && e.kategorie !== filter.kategorie) return false;
+    /* Ein Eintrag passt, wenn er die gesuchte Kategorie unter mehreren hat. */
+    if (filter.kategorie !== "alle" && e.kategorien.indexOf(filter.kategorie) < 0) return false;
     if (q && !(e.titel.toLowerCase().indexOf(q) >= 0 || (e.referenz || "").toLowerCase().indexOf(q) >= 0)) return false;
     return true;
   });
@@ -1526,13 +1737,15 @@ function renderDetail(){
   if (!e){ el.innerHTML = '<div class="card empty"><b>Eintrag nicht gefunden</b></div>'; return; }
   const heute = Core.heute();
   const st = Core.status(e, heute, Einst.werte.vorwarnTage);
-  const kat = Core.kategorie(e.kategorie), typ = Core.datumstyp(e.datumstyp);
+  const kats = Core.kategorienVon(e), typ = Core.datumstyp(e.datumstyp);
   const wdh = Core.WIEDERHOLUNGEN[e.wiederholung];
   const aktiveRem = (e.erinnerungen || []).filter(r => r.an);
 
-  let html = '<div class="detail-head"><span class="kat" aria-hidden="true">' + kat.emoji + "</span>"
+  let html = '<div class="detail-head"><span class="kat" aria-hidden="true">' + kats[0].emoji + "</span>"
     + "<div><h2>" + esc(e.titel) + "</h2>"
-    + '<div class="kn">' + esc(kat.label) + "</div></div></div>"
+    + '<div class="katchips" style="margin-top:5px">'
+    + kats.map(k => '<span class="katchip">' + k.emoji + " " + esc(k.label) + "</span>").join("")
+    + "</div></div></div>"
     + '<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
     + '<div><div class="muted">' + typ.label + '</div><div class="bigdate">' + Core.fmtDatum(e.datum)
     + '<span class="rest">' + (e.archiviert ? "archiviert" : Core.fmtRest(e.datum, heute)) + "</span></div></div>"
@@ -1573,6 +1786,99 @@ function renderDetail(){
   $("d-erneuern").addEventListener("click", () => erneuernOeffnen(e));
 }
 
+/* ---------- Eigene Kategorien anlegen und bearbeiten --------------------
+   Der Dialog dient beidem: Anlegen (aus dem Formular oder den
+   Einstellungen) und Umbenennen. `katFertig` nimmt auf, was danach
+   passieren soll – im Formular wird die neue Kategorie gleich ausgewählt. */
+const EMOJI_AUSWAHL = (
+  "📌📁🗂️📅⏰⏳🔔✅🔖📎🧾🏛️⚖️🛡️🔒🪪💳💼🚗🩺✈️📄🏠🔑🏦💰💡🔧🛠️🧰🚲🛵🚚⛵🎫🎟️🎬🎵🎓📚" +
+  "🏋️⚽🏕️🧳🌍📱💻🖨️📷⌚🔌🔋🧯🚨⚠️🩹💊🦷👓🧴🍼👶❤️⭐🌱🐕🐈🐾🍽️☕🎂🎁🧹🪴🖼️🎨🧑‍💻🧑‍🔧"
+).match(/\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*/gu) || [];
+
+let katBearbeitet = null;      /* null = neue Kategorie */
+let katFertig = null;          /* Rückruf nach dem Speichern */
+
+function katEmojiSetzen(v){
+  const e = Kategorien.emojiPruefen(v);
+  $("kat-emoji").value = e;
+  $("kat-emoji-gross").textContent = e;
+  $("kat-emojis").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("active", b.dataset.e === e));
+}
+function katDialog(id, fertig){
+  katBearbeitet = id ? Core.eigene.find(k => k.id === id) || null : null;
+  katFertig = fertig || null;
+  $("kat-dlg-titel").textContent = katBearbeitet ? "Kategorie bearbeiten" : "Neue Kategorie";
+  $("kat-name").value = katBearbeitet ? katBearbeitet.label : "";
+  $("kat-err").classList.remove("show");
+  $("kat-emojis").innerHTML = EMOJI_AUSWAHL.map(e =>
+    '<button type="button" data-e="' + e + '">' + e + "</button>").join("");
+  $("kat-emojis").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => katEmojiSetzen(b.dataset.e)));
+  katEmojiSetzen(katBearbeitet ? katBearbeitet.emoji : "📌");
+  openModal("modal-kategorie");
+  setTimeout(() => $("kat-name").focus(), 60);
+}
+$("kat-emoji").addEventListener("change", e => katEmojiSetzen(e.target.value));
+$("kat-emoji").addEventListener("blur", e => katEmojiSetzen(e.target.value));
+$("kat-ok").addEventListener("click", () => {
+  const fehler = $("kat-err");
+  try {
+    const k = katBearbeitet
+      ? Kategorien.umbenennen(katBearbeitet.id, $("kat-name").value, $("kat-emoji").value)
+      : Kategorien.hinzufuegen($("kat-name").value, $("kat-emoji").value);
+    closeModal("modal-kategorie");
+    if (katFertig) katFertig(k);
+    renderKatVerwaltung();
+    render();
+    toast(katBearbeitet ? "Kategorie geändert" : "Kategorie „" + k.label + "“ angelegt");
+  } catch(err){
+    fehler.textContent = err && err.message ? err.message : String(err);
+    fehler.classList.add("show");
+  }
+});
+
+/* Verwaltung in den Einstellungen */
+function renderKatVerwaltung(){
+  const ul = $("s-kategorien");
+  if (!ul) return;
+  if (!Core.eigene.length){
+    ul.innerHTML = '<li><span class="n muted">Noch keine eigenen Kategorien. '
+      + "Die acht mitgelieferten stehen immer zur Verfügung.</span></li>";
+    return;
+  }
+  ul.innerHTML = Core.eigene.map(k => {
+    const n = Kategorien.anzahl(k.id);
+    return '<li><span class="e" aria-hidden="true">' + k.emoji + "</span>"
+      + '<span class="n">' + esc(k.label)
+      + '<span class="anz"> · ' + (n === 1 ? "1 Eintrag" : n + " Einträge") + "</span></span>"
+      + '<button data-bearbeiten="' + k.id + '" aria-label="Bearbeiten">'
+      + '<svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 10-4-4L4 16z"/></svg></button>'
+      + '<button class="loesch" data-loeschen="' + k.id + '" aria-label="Löschen">'
+      + '<svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></svg></button>'
+      + "</li>";
+  }).join("");
+  ul.querySelectorAll("[data-bearbeiten]").forEach(b =>
+    b.addEventListener("click", () => katDialog(b.dataset.bearbeiten)));
+  ul.querySelectorAll("[data-loeschen]").forEach(b => b.addEventListener("click", () => {
+    const k = Core.eigene.find(x => x.id === b.dataset.loeschen);
+    if (!k) return;
+    const n = Kategorien.anzahl(k.id);
+    const frage = n
+      ? "„" + k.label + "“ löschen?\n\n" + (n === 1 ? "1 Eintrag verliert" : n + " Einträge verlieren")
+        + " diese Kategorie. Die Einträge selbst bleiben erhalten; wer danach ohne Kategorie dasteht, "
+        + "bekommt „Sonstiges“."
+      : "„" + k.label + "“ löschen?";
+    if (!confirm(frage)) return;
+    Kategorien.entfernen(k.id);
+    if (filter.kategorie === k.id) filter.kategorie = "alle";
+    renderKatVerwaltung();
+    render();
+    toast("Kategorie gelöscht");
+  }));
+}
+$("s-kat-neu").addEventListener("click", () => katDialog(null));
+
 /* ---------- Erneuern / Erledigt ----------------------------------------
    Wiederkehrende Einträge springen direkt in den nächsten Zyklus.
    Einmalige Einträge fragen nach dem neuen Datum, mit Schnellwahl.      */
@@ -1609,14 +1915,23 @@ $("ern-ok").addEventListener("click", () => {
 /* ---------- Formular ---------- */
 let formId = null;               /* null = neuer Eintrag */
 let formRem = [];                /* Erinnerungen im Bearbeitungszustand */
-let formKat = null, formTyp = "ablauf";
+let formKats = [], formTyp = "ablauf";
 
 function renderKatGrid(){
-  $("f-kategorie").innerHTML = Core.KATEGORIEN.map(k =>
-    '<button type="button" data-k="' + k.id + '"' + (formKat === k.id ? ' class="active"' : "") + ">"
-    + '<span class="e" aria-hidden="true">' + k.emoji + "</span>" + k.label + "</button>").join("");
+  $("f-kategorie").innerHTML = Core.kategorien().map(k =>
+    '<button type="button" data-k="' + k.id + '"' + (formKats.indexOf(k.id) >= 0 ? ' class="active"' : "") + ">"
+    + '<span class="e" aria-hidden="true">' + k.emoji + "</span>" + esc(k.label) + "</button>").join("")
+    + '<button type="button" class="neu" id="f-kat-neu">'
+    + '<span class="e" aria-hidden="true">＋</span>Neu</button>';
   $("f-kategorie").querySelectorAll("[data-k]").forEach(b => b.addEventListener("click", () => {
-    formKat = b.dataset.k; renderKatGrid();
+    const id = b.dataset.k, i = formKats.indexOf(id);
+    if (i >= 0) formKats.splice(i, 1); else formKats.push(id);
+    renderKatGrid();
+  }));
+  /* Eine hier angelegte Kategorie wird gleich mit ausgewählt. */
+  $("f-kat-neu").addEventListener("click", () => katDialog(null, k => {
+    if (formKats.indexOf(k.id) < 0) formKats.push(k.id);
+    renderKatGrid();
   }));
 }
 function renderRemListe(){
@@ -1669,7 +1984,7 @@ function formOeffnen(id){
   const e = id ? Daten.get(id) : null;
   $("form-titel").textContent = e ? "Eintrag bearbeiten" : "Neuer Eintrag";
   $("f-titel").value = e ? e.titel : "";
-  formKat = e ? e.kategorie : null;
+  formKats = e ? e.kategorien.slice() : [];
   formTypSetzen(e ? e.datumstyp : "ablauf");
   $("f-datum").value = e ? e.datum : "";
   $("f-wiederholung").value = e && e.wiederholung !== "keine" ? e.wiederholung : "jaehrlich";
@@ -1721,12 +2036,12 @@ $("f-speichern").addEventListener("click", () => {
   let ok = true;
   $("f-titel-err").classList.toggle("show", !titel); if (!titel) ok = false;
   $("f-datum-err").classList.toggle("show", !Core.istIso(datum)); if (!Core.istIso(datum)) ok = false;
-  if (!formKat){ toast("Bitte eine Kategorie wählen"); ok = false; }
+  if (!formKats.length){ toast("Bitte mindestens eine Kategorie wählen"); ok = false; }
   if (!ok) return;
   const alt = formId ? Daten.get(formId) : null;
   const e = Daten.upsert({
     id: formId || undefined,
-    titel, kategorie: formKat, datumstyp: formTyp, datum,
+    titel, kategorien: formKats.slice(), datumstyp: formTyp, datum,
     wiederholung: formTyp === "wiederkehrend" ? $("f-wiederholung").value : "keine",
     erinnerungen: formRem, erinnerungenAn: $("f-rem-an").checked,
     referenz: $("f-referenz").value, notiz: $("f-notiz").value,
@@ -1767,6 +2082,7 @@ function renderSettings(){
     ? (Einst.werte.erinnerungenAn ? "Benachrichtigungen auf diesem Gerät" : "Zurzeit ausgeschaltet")
     : "Nur in der Android-App verfügbar";
   $("s-notif").disabled = !Erinnerungen.verfuegbar();
+  renderKatVerwaltung();
   applyTheme();
 }
 $("btn-settings").addEventListener("click", () => { renderSettings(); openModal("modal-settings"); });
@@ -1799,8 +2115,11 @@ $("s-beispiele").addEventListener("click", () => {
   toast(n + " Beispieleinträge geladen");
 });
 $("s-reset").addEventListener("click", () => {
-  if (!confirm("Wirklich alle Einträge löschen? Das lässt sich nicht rückgängig machen.")) return;
+  if (!confirm("Wirklich alle Einträge und eigenen Kategorien löschen? "
+    + "Das lässt sich nicht rückgängig machen.")) return;
   Daten.alleLoeschen();
+  Kategorien.alleLoeschen();
+  filter.status = "alle"; filter.kategorie = "alle";
   closeModal("modal-settings"); render();
   toast("Alle Daten gelöscht");
 });
@@ -1885,6 +2204,9 @@ function render(){
 
 /* ---------- Start ---------- */
 Einst.laden();
+/* Reihenfolge beachten: Ohne die eigenen Kategorien würde die
+   Normalisierung der Einträge deren IDs als unbekannt verwerfen. */
+Kategorien.laden();
 Daten.laden();
 applyTheme();
 Edition.apply();
@@ -1911,7 +2233,8 @@ if (!load(OB_KEY, false)){ obShow(0); openModal("modal-onboarding"); }
 
 /* Für die automatisierten Tests: die Fachlogik ist bewusst DOM-frei und
    wird hier zum Prüfen freigelegt. Die Oberfläche greift nicht darauf zu. */
-window.N2L = { Core, Daten, Einst, Bridge, Erinnerungen, Kalender, Edition, Ads, Billing, APP_VERSION };
+window.N2L = { Core, Daten, Kategorien, Einst, Bridge, Erinnerungen, Kalender,
+               Edition, Ads, Billing, APP_VERSION };
 </script>
 </body>
 </html>

@@ -178,6 +178,141 @@ test("Erinnerungen lassen sich ergänzen, abschalten und entfernen", async ({ pa
   await expect(page.locator("#detail-inhalt")).toContainText("2 Wochen vorher, 1 Woche vorher");
 });
 
+test("Ein Eintrag lässt sich mehreren Kategorien zuordnen", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Reisepass");
+  await page.click('#f-kategorie button[data-k="ausweise"]');
+  await page.click('#f-kategorie button[data-k="reisen"]');
+  await expect(page.locator('#f-kategorie button[data-k="ausweise"]')).toHaveClass(/active/);
+  await expect(page.locator('#f-kategorie button[data-k="reisen"]')).toHaveClass(/active/);
+
+  // Nochmal antippen wählt wieder ab
+  await page.click('#f-kategorie button[data-k="reisen"]');
+  await expect(page.locator('#f-kategorie button[data-k="reisen"]')).not.toHaveClass(/active/);
+  await page.click('#f-kategorie button[data-k="reisen"]');
+
+  await page.fill("#f-datum", inTagen(600));
+  await page.click("#f-speichern");
+
+  expect(await page.evaluate(() => window.N2L.Daten.alle()[0].kategorien)).toEqual(["ausweise", "reisen"]);
+  await expect(page.locator("#detail-inhalt .katchip")).toHaveCount(2);
+  await expect(page.locator("#detail-inhalt")).toContainText("Ausweise");
+  await expect(page.locator("#detail-inhalt")).toContainText("Reisen");
+
+  // Die Zeile zeigt einen Zähler für die weiteren Kategorien
+  // (auf die Liste eingegrenzt – das Dashboard rendert dieselben Zeilen)
+  await page.click('nav.tabs button[data-tab="liste"]');
+  await expect(page.locator("#liste-inhalt .row .kat .mehr")).toHaveText("+1");
+  await expect(page.locator("#liste-inhalt .row .sub")).toContainText("Ausweise, Reisen");
+});
+
+test("Ohne Kategorie lässt sich nicht speichern", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Ohne Kategorie");
+  await page.fill("#f-datum", inTagen(100));
+  await page.click("#f-speichern");
+  await expect(page.locator("#view-form")).toHaveClass(/active/);
+  await expect(page.locator("#toast")).toContainText("mindestens eine Kategorie");
+  expect(await page.evaluate(() => window.N2L.Daten.alle().length)).toBe(0);
+});
+
+test("Eigene Kategorie im Formular anlegen und direkt verwenden", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.click("#f-kat-neu");
+  await expect(page.locator("#modal-kategorie")).toHaveClass(/open/);
+
+  await page.fill("#kat-name", "Haustier");
+  await page.click('#kat-emojis button[data-e="🐾"]');
+  await expect(page.locator("#kat-emoji-gross")).toHaveText("🐾");
+  await page.click("#kat-ok");
+  await expect(page.locator("#modal-kategorie")).not.toHaveClass(/open/);
+
+  // Die neue Kategorie steht im Raster und ist schon ausgewählt
+  const neu = page.locator("#f-kategorie button.active", { hasText: "Haustier" });
+  await expect(neu).toHaveCount(1);
+
+  await page.fill("#f-titel", "Impfpass Hund");
+  await page.fill("#f-datum", inTagen(300));
+  await page.click("#f-speichern");
+
+  const e = await page.evaluate(() => window.N2L.Daten.alle()[0]);
+  expect(e.kategorien).toHaveLength(1);
+  expect(e.kategorien[0]).toMatch(/^eigen-haustier$/);
+  await expect(page.locator("#detail-inhalt .katchip")).toContainText("Haustier");
+});
+
+test("Doppelter Kategoriename wird abgelehnt", async ({ page }) => {
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  await page.fill("#kat-name", "Ausweise");
+  await page.click("#kat-ok");
+  await expect(page.locator("#kat-err")).toBeVisible();
+  await expect(page.locator("#kat-err")).toContainText("schon eine Kategorie");
+  await expect(page.locator("#modal-kategorie")).toHaveClass(/open/);
+  expect(await page.evaluate(() => window.N2L.Core.eigene.length)).toBe(0);
+});
+
+test("Eigene Kategorie filtern, bearbeiten und löschen", async ({ page }) => {
+  page.on("dialog", d => d.accept());
+  await page.evaluate(() => {
+    const k = window.N2L.Kategorien.hinzufuegen("Wohnung", "🏠");
+    window.N2L.Daten.upsert({ titel: "Mietvertrag", kategorien: ["vertraege", k.id],
+      datum: "2028-01-31" });
+    window.N2L.Daten.upsert({ titel: "Reisepass", kategorien: ["ausweise"], datum: "2029-05-05" });
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.N2L);
+
+  // Der Filter kennt die eigene Kategorie
+  await page.click('nav.tabs button[data-tab="liste"]');
+  const chip = page.locator("#filter-kategorie button", { hasText: "Wohnung" });
+  await expect(chip).toHaveCount(1);
+  await chip.click();
+  await expect(page.locator("#liste-inhalt .row")).toHaveCount(1);
+  await expect(page.locator("#liste-inhalt")).toContainText("Mietvertrag");
+
+  // Umbenennen in den Einstellungen
+  await page.click("#btn-settings");
+  await expect(page.locator("#s-kategorien")).toContainText("1 Eintrag");
+  await page.click("#s-kategorien [data-bearbeiten]");
+  await page.fill("#kat-name", "Wohnen");
+  await page.click("#kat-ok");
+  await expect(page.locator("#s-kategorien")).toContainText("Wohnen");
+
+  // Löschen zieht den Eintrag mit, ohne ihn zu verlieren
+  await page.click("#s-kategorien [data-loeschen]");
+  await expect(page.locator("#s-kategorien")).toContainText("Noch keine eigenen Kategorien");
+  await page.click('[data-close="modal-settings"]');
+
+  const e = await page.evaluate(() =>
+    window.N2L.Daten.alle().find(x => x.titel === "Mietvertrag").kategorien);
+  expect(e).toEqual(["vertraege"]);
+  expect(await page.evaluate(() => window.N2L.Daten.alle().length)).toBe(2);
+});
+
+test("Sicherung nimmt eigene Kategorien mit", async ({ page }) => {
+  const sicherung = await page.evaluate(() => {
+    const k = window.N2L.Kategorien.hinzufuegen("Studium", "🎓");
+    window.N2L.Daten.upsert({ titel: "Semesterbeitrag", kategorien: [k.id], datum: "2027-04-01" });
+    return JSON.stringify(window.N2L.Daten.exportObjekt());
+  });
+  expect(JSON.parse(sicherung).kategorien).toHaveLength(1);
+
+  // Alles löschen und aus der Sicherung wiederherstellen
+  await page.evaluate(() => { window.N2L.Daten.alleLoeschen(); window.N2L.Kategorien.alleLoeschen(); });
+  await page.evaluate(s => window.N2L.Daten.importObjekt(JSON.parse(s)), sicherung);
+  await page.reload();
+  await page.waitForFunction(() => !!window.N2L);
+
+  const r = await page.evaluate(() => ({
+    eigene: window.N2L.Core.eigene.map(k => k.label + k.emoji),
+    kats: window.N2L.Daten.alle()[0].kategorien
+  }));
+  expect(r.eigene).toEqual(["Studium🎓"]);
+  expect(r.kats[0]).toMatch(/^eigen-studium$/);   // nicht auf "sonstiges" zurückgefallen
+  await expect(page.locator("#home-inhalt")).toContainText("Semesterbeitrag");
+});
+
 test("Zurück führt Schritt für Schritt zurück zur Startseite", async ({ page }) => {
   await eintragAnlegen(page, { titel: "Testeintrag", datum: inTagen(100) });
   await page.click("#d-bearbeiten");
