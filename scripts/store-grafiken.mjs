@@ -51,15 +51,20 @@ for (let i = 0; i < AUFNAHMEN.length; i++){
 await page.setViewportSize({ width: 1024, height: 500 });
 await page.setContent(`<style>
   html,body{margin:0;padding:0}
+  /* overflow:hidden ist Pflicht: Läuft der Text über, wächst sonst die
+     Elementbreite mit, und der Screenshot wird breiter als 1024 px –
+     Google verlangt die Maße aber auf den Pixel genau. */
   #b{width:1024px;height:500px;background:${VERLAUF};font-family:${SCHRIFT};
-     display:flex;align-items:center;gap:52px;padding:0 76px}
+     display:flex;align-items:center;gap:52px;padding:0 76px;overflow:hidden;
+     box-sizing:border-box}
   #s{width:190px;height:190px;flex:none}
   #s svg{width:100%;height:100%;display:block;
     filter:drop-shadow(0 12px 26px rgba(0,40,38,.35))}
+  #t{flex:1;min-width:0}
   h1{color:#fff;font-size:78px;font-weight:700;letter-spacing:-.03em;margin:0}
   p{color:#d9f5f1;font-size:35px;margin:12px 0 0;font-weight:500}
 </style><div id="b"><div id="s">${LOGO}</div>
-  <div><h1>Never2Late</h1><p>Ablaufdaten und Fristen im Blick</p></div></div>`);
+  <div id="t"><h1>Never2Late</h1><p>Ablaufdaten und Fristen im Blick</p></div></div>`);
 writeFileSync(`${ZIEL}/feature-grafik-1024x500.png`, await page.locator("#b").screenshot());
 console.log(`${ZIEL}/feature-grafik-1024x500.png`);
 
