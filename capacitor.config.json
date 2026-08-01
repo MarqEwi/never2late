@@ -8,7 +8,7 @@
   "android": {
     "buildOptions": {
       "keystorePath": "android.keystore",
-      "releaseType": "APK"
+      "releaseType": "AAB"
     }
   }
 }
