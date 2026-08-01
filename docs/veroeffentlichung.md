@@ -53,6 +53,7 @@ Hier ist Never2Late angenehm schnell abgehakt, weil die App nichts sammelt:
 | App-Zugriff | Alle Funktionen ohne Einschränkung verfügbar (kein Login) |
 | Inhaltseinstufung | Fragebogen ausfüllen, alles verneinen → „Ab 0 Jahren“ |
 | Zielgruppe | **18 und älter**; „Für Kinder gedacht“: **Nein** |
+| Werbe-ID | **Nein**, die App verwendet keine Werbe-ID |
 | Datensicherheit | siehe unten – die wichtigste Antwort ist ein Nein |
 | Staatliche App | Nein |
 | Finanzfunktionen | Nein |
@@ -65,6 +66,13 @@ Formular fertig. Alles bleibt auf dem Gerät, es gibt keinen Server.
 Die Berechtigung für **Benachrichtigungen** ist dabei keine Datenerhebung – die
 Erinnerungen werden komplett auf dem Handy berechnet. An der
 Datensicherheits-Erklärung ändert sie also nichts.
+
+**Zur Werbe-ID:** Das AdMob-Plugin zieht `play-services-ads` mit, und dieses
+Google-SDK trägt die Berechtigung `AD_ID` von sich aus ins Manifest ein – auch
+wenn die Werbung abgeschaltet ist. Damit die Angabe „keine Werbe-ID" stimmt,
+wird die Berechtigung im `AndroidManifest.xml` ausdrücklich wieder entfernt
+(`tools:node="remove"`). Ohne das verlangt die Play Console eine Erklärung zur
+Werbe-ID, und die Antwort „keine Datenerhebung" wäre nicht mehr stimmig.
 
 ## 4. Signieren & hochladen (Android Studio)
 
@@ -153,7 +161,7 @@ Release nicht starten. Trag dich unter „Tester“ selbst ein.
 ### 4.5 Bei jedem weiteren Upload
 
 In `android/app/build.gradle` den `versionCode` um 1 erhöhen (steht aktuell auf
-`1`), bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach
+`2`), bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach
 wieder `npm run cap:sync` und neu bauen. Sind mehrere Änderungen noch nicht
 hochgeladen, gehen sie in einem Build raus – dann steigt der `versionCode` nur
 einmal.
@@ -222,9 +230,15 @@ aktivieren willst, sind das die Schritte – **erst dann**, nicht jetzt:
    (mit Bindestrich – Unterstriche sind dort nicht erlaubt). Im Code dann
    `Billing.ENABLED` und `Edition.PREMIUM_VERFUEGBAR` auf `true` setzen.
    Die Produkt-ID lässt sich nach dem Anlegen **nicht mehr ändern**.
-3. **Datenschutzerklärung und Data-Safety-Formular anpassen:** Mit Werbung
-   ändern sich beide. In `datenschutz.html` muss dann wieder ein Abschnitt zu
-   AdMob hinein, und im Formular „Anzeigen“ wird aus dem Nein ein Ja.
-4. **Lizenztester eintragen**, sonst kostet ein Testkauf echtes Geld:
+3. **Werbe-ID wieder zulassen:** Im `android/app/src/main/AndroidManifest.xml`
+   die Zeile mit `com.google.android.gms.permission.AD_ID` und
+   `tools:node=”remove”` **löschen**. Sonst bekommt das SDK die Werbe-ID nicht
+   und die Anzeigen bleiben leer.
+4. **Datenschutzerklärung und Formulare anpassen:** Mit Werbung ändern sich
+   mehrere Angaben. In `datenschutz.html` muss wieder ein Abschnitt zu AdMob
+   hinein; im Formular „Anzeigen” wird aus dem Nein ein Ja, bei „Werbe-ID”
+   ebenfalls, und in der Datensicherheit ist dann „Geräte- oder andere IDs”
+   als erhoben anzugeben.
+5. **Lizenztester eintragen**, sonst kostet ein Testkauf echtes Geld:
    Play Console → Haus-Symbol (Alle Apps) → **Einstellungen → Lizenztests** →
    eigene Google-Adresse hinzufügen → **RESPOND_NORMALLY**.

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -48,4 +49,18 @@
     <!-- Erinnerungen: ab Android 13 muss die App die Berechtigung für
          Benachrichtigungen zur Laufzeit anfragen (POST_NOTIFICATIONS). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Werbe-ID ausdrücklich entfernen.
+         Das AdMob-Plugin zieht "play-services-ads" mit, und dieses Google-SDK
+         trägt die Berechtigung AD_ID von sich aus in das zusammengeführte
+         Manifest ein. Never2Late benutzt die Werbe-ID aber nicht: Werbung ist
+         in dieser Version über ADS_CONF.ENABLED abgeschaltet, das SDK wird nie
+         gestartet. Ohne diese Zeile stünde im fertigen Paket eine Berechtigung,
+         die die App nicht nutzt – die Play Console verlangt dann eine Erklärung
+         zur Werbe-ID, und die Angabe "keine Datenerhebung" wäre nicht mehr
+         stimmig.
+         WICHTIG: Wird Werbung später aktiviert (siehe docs/veroeffentlichung.md,
+         Abschnitt 7), muss diese Zeile wieder raus. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
 </manifest>
