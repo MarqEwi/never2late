@@ -41,13 +41,24 @@ export function capacitorMock(){
         checkPermissions: async () => ({ display: "granted" }),
         requestPermissions: async () => ({ display: "granted" }),
         getPending: async () => ({ notifications: (window.__geplant || []).map(n => ({ id: n.id })) }),
-        cancel: async o => { merke("LocalNotifications.cancel", { anzahl: o.notifications.length }); window.__geplant = []; },
+        cancel: async o => {
+          const ids = o.notifications.map(n => n.id);
+          merke("LocalNotifications.cancel", { anzahl: ids.length, ids });
+          window.__geplant = (window.__geplant || []).filter(n => ids.indexOf(n.id) < 0);
+        },
         schedule: async o => {
-          window.__geplant = o.notifications.map(n => ({
+          // Wie das echte Plugin: bereits vorgemerkte Kennungen werden
+          // ersetzt, alles andere kommt hinzu.
+          const neu = o.notifications.map(n => ({
             id: n.id, title: n.title, body: n.body,
-            at: n.schedule && n.schedule.at ? new Date(n.schedule.at).toISOString() : null
+            // Die Capacitor-Brücke wandelt Date beim Übertragen in einen
+            // ISO-String – hier genauso, damit der Test dem Ernstfall folgt.
+            at: n.schedule && n.schedule.at
+              ? JSON.parse(JSON.stringify({ a: n.schedule.at })).a : null
           }));
-          merke("LocalNotifications.schedule", { anzahl: o.notifications.length });
+          const ids = neu.map(n => n.id);
+          window.__geplant = (window.__geplant || []).filter(n => ids.indexOf(n.id) < 0).concat(neu);
+          merke("LocalNotifications.schedule", { anzahl: neu.length });
         }
       }
     }
