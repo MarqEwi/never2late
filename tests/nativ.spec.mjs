@@ -109,6 +109,46 @@ test("Archivierte Einträge und abgeschaltete Erinnerungen erzeugen keine Benach
   await page.waitForFunction(() => (window.__geplant || []).length === 0);
 });
 
+test("Testbenachrichtigung wird geplant und überlebt eine Neuplanung", async ({ page }) => {
+  await eintragAnlegen(page, { titel: "Irgendwas", kategorie: "karten", datum: inTagen(200) });
+  await page.waitForFunction(() => (window.__geplant || []).length === 3);
+
+  await page.click("#btn-settings");
+  await page.click("#s-notif-test");
+  await page.waitForFunction(() => (window.__geplant || []).some(n => n.id === 999000001));
+
+  const probe = await page.evaluate(() => window.__geplant.find(n => n.id === 999000001));
+  expect(probe.title).toBe("Testbenachrichtigung");
+  // Rund zehn Sekunden in der Zukunft
+  const inMs = new Date(probe.at).getTime() - Date.now();
+  expect(inMs).toBeGreaterThan(3000);
+  expect(inMs).toBeLessThan(20000);
+
+  // Eine Neuplanung darf die Probe nicht wegräumen, sonst käme sie nie an.
+  await page.evaluate(() => window.N2L.Erinnerungen.neuPlanen());
+  await page.waitForTimeout(300);
+  const nochDa = await page.evaluate(() =>
+    window.__calls.filter(c => c.name === "LocalNotifications.cancel")
+      .every(c => !c.arg.ids || c.arg.ids.indexOf(999000001) < 0));
+  expect(nochDa).toBe(true);
+});
+
+test("Der Planungsstand wird beim System abgefragt und angezeigt", async ({ page }) => {
+  await eintragAnlegen(page, { titel: "Reisepass", kategorie: "ausweise", datum: inTagen(300) });
+  await page.waitForFunction(() => (window.__geplant || []).length === 3);
+
+  await page.click("#btn-settings");
+  await expect(page.locator("#s-notif-stand")).toContainText("3 Erinnerungen vorgemerkt");
+  await expect(page.locator("#s-notif-stand")).toContainText("nächste am");
+
+  // Meldet das System nichts, muss die App das offen sagen statt zu schweigen.
+  await page.evaluate(() => {
+    window.Capacitor.Plugins.LocalNotifications.getPending = async () => ({ notifications: [] });
+  });
+  await page.evaluate(() => window.N2L.Erinnerungen.standAbfragen());
+  await expect(page.locator("#s-notif-stand")).toContainText("keine Erinnerung vorgemerkt");
+});
+
 test("Zurück-Taste schließt Fenster, geht zurück und verlangt zweimaliges Drücken", async ({ page }) => {
   await eintragAnlegen(page, { titel: "Testeintrag", datum: inTagen(100) });
   const zurueck = () => page.evaluate(() => window.__listener.backButton());

@@ -625,6 +625,11 @@
       <div class="txt"><b>Erinnerungen</b><span id="s-notif-sub">Benachrichtigungen auf diesem Gerät</span></div>
       <label class="switch"><input type="checkbox" id="s-notif"><span class="track"></span></label>
     </div>
+    <p class="hint" id="s-notif-stand"></p>
+    <button class="settings-row" id="s-notif-test">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10.5 21a2 2 0 003 0"/></svg>
+      <span class="t"><b>Testbenachrichtigung senden</b><span>Kommt nach etwa 10 Sekunden</span></span>
+    </button>
     <p class="diag" id="notif-status"></p>
 
     <h3>Eigene Kategorien</h3>
@@ -1369,7 +1374,9 @@ const Bridge = {
    ========================================================================= */
 const Erinnerungen = {
   MAX_GEPLANT: 200,      /* Android begrenzt die Zahl gleichzeitiger Alarme */
+  TEST_ID: 999000001,    /* eigene Kennung, damit die Probe nicht mit echten kollidiert */
   statusLog: [], erlaubt: null, planLaeuft: false, planErneut: false,
+  geplant: null,         /* zuletzt vom System gemeldete Zahl offener Erinnerungen */
   log(msg, isErr){
     (isErr ? console.error : console.log)("[Erinnerung] " + msg);
     this.statusLog.push(msg);
@@ -1415,9 +1422,10 @@ const Erinnerungen = {
       if (this.erlaubt === null) await this.berechtigungPruefen();
       try {
         const offen = await p.getPending();
-        if (offen && offen.notifications && offen.notifications.length){
-          await p.cancel({ notifications: offen.notifications.map(n => ({ id: n.id })) });
-        }
+        /* Die Probe-Benachrichtigung ausnehmen – sie soll noch kommen. */
+        const weg = ((offen && offen.notifications) || [])
+          .filter(n => n.id !== this.TEST_ID).map(n => ({ id: n.id }));
+        if (weg.length) await p.cancel({ notifications: weg });
       } catch(e){ this.log("Aufräumen fehlgeschlagen: " + (e && e.message ? e.message : e), true); }
 
       if (!Einst.werte.erinnerungenAn){ this.log("Erinnerungen ausgeschaltet"); return 0; }
@@ -1443,6 +1451,10 @@ const Erinnerungen = {
       const senden = geplant.slice(0, this.MAX_GEPLANT);
       if (senden.length) await p.schedule({ notifications: senden });
       this.log(senden.length + " Erinnerungen geplant" + (zuviel > 0 ? " (" + zuviel + " weitere folgen später)" : ""));
+      /* Beim System nachfragen, was dort wirklich liegt. Nur diese Zahl
+         beweist, dass die Planung angekommen ist – unsere eigene sagt bloß,
+         was wir abgeschickt haben. */
+      await this.standAbfragen();
       return senden.length;
     } catch(e){
       this.log("Planen fehlgeschlagen: " + (e && e.message ? e.message : e), true);
@@ -1450,6 +1462,65 @@ const Erinnerungen = {
     } finally {
       this.planLaeuft = false;
       if (this.planErneut){ this.planErneut = false; this.neuPlanen(); }
+    }
+  },
+
+  /* Fragt das System, wie viele Erinnerungen dort tatsächlich vorgemerkt
+     sind. Weicht das von unserer Zahl ab, liegt der Fehler nicht bei uns. */
+  async standAbfragen(){
+    const p = this.plugin();
+    if (!p){ this.geplant = null; return null; }
+    try {
+      const offen = await p.getPending();
+      const liste = ((offen && offen.notifications) || []).filter(n => n.id !== this.TEST_ID);
+      this.geplant = liste.length;
+      this.log("System meldet " + this.geplant + " vorgemerkt");
+    } catch(e){
+      this.geplant = null;
+      this.log("Abfrage fehlgeschlagen: " + (e && e.message ? e.message : e), true);
+    }
+    if (typeof renderSettings === "function") renderSettings();
+    return this.geplant;
+  },
+
+  /* Nächster fälliger Erinnerungszeitpunkt aus unseren eigenen Daten. */
+  naechster(){
+    const jetzt = new Date();
+    let fruehester = null;
+    Daten.alle().forEach(e => Core.termine(e, jetzt).forEach(t => {
+      if (t.kuenftig && (!fruehester || t.at < fruehester)) fruehester = t.at;
+    }));
+    return fruehester;
+  },
+
+  /* Probe: eine Benachrichtigung in zehn Sekunden. Damit lässt sich in
+     Sekunden klären, ob Erinnerungen überhaupt ankommen – statt bis zum
+     nächsten Morgen zu warten. */
+  async probe(){
+    const p = this.plugin();
+    if (!p){ toast("Nur in der Android-App verfügbar"); return false; }
+    const ok = await this.berechtigungAnfragen();
+    if (!ok){
+      toast("Keine Berechtigung für Benachrichtigungen");
+      renderSettings();
+      return false;
+    }
+    try {
+      const at = new Date(Date.now() + 10000);
+      await p.schedule({ notifications: [{
+        id: this.TEST_ID,
+        title: "Testbenachrichtigung",
+        body: "Wenn du das liest, funktionieren Erinnerungen auf diesem Gerät.",
+        schedule: { at, allowWhileIdle: true }
+      }] });
+      this.log("Probe geplant für " + at.toLocaleTimeString("de-DE"));
+      toast("Die Testbenachrichtigung kommt in etwa 10 Sekunden", 4000);
+      return true;
+    } catch(e){
+      const msg = e && e.message ? e.message : String(e);
+      this.log("Probe fehlgeschlagen: " + msg, true);
+      alert("Die Testbenachrichtigung konnte nicht geplant werden.\n\n" + msg);
+      return false;
     }
   },
 
@@ -2275,6 +2346,7 @@ $("s-vorwarn").addEventListener("change", e => {
   Einst.set("vorwarnTage", Number(e.target.value)); render();
 });
 $("s-notif").addEventListener("change", e => Erinnerungen.einschalten(e.target.checked));
+$("s-notif-test").addEventListener("click", () => Erinnerungen.probe());
 
 function renderSettings(){
   $("s-version").textContent = "v" + APP_VERSION;
@@ -2284,10 +2356,44 @@ function renderSettings(){
     ? (Einst.werte.erinnerungenAn ? "Benachrichtigungen auf diesem Gerät" : "Zurzeit ausgeschaltet")
     : "Nur in der Android-App verfügbar";
   $("s-notif").disabled = !Erinnerungen.verfuegbar();
+  /* Sichtbar machen, was tatsächlich geplant ist. Steht hier 0, obwohl
+     Einträge mit Erinnerungen vorhanden sind, weiß man sofort Bescheid –
+     statt vergeblich auf eine Meldung zu warten. */
+  const stand = $("s-notif-stand");
+  const testKnopf = $("s-notif-test");
+  if (!Erinnerungen.verfuegbar()){
+    stand.textContent = "In der Web-Version plant der Browser keine Erinnerungen. "
+      + "In der Android-App funktioniert das.";
+    testKnopf.style.display = "none";
+  } else {
+    testKnopf.style.display = "";
+    const n = Erinnerungen.geplant;
+    const naechst = Erinnerungen.naechster();
+    if (!Einst.werte.erinnerungenAn){
+      stand.textContent = "Erinnerungen sind ausgeschaltet.";
+    } else if (n === 0){
+      stand.textContent = Daten.aktive().length
+        ? "Zurzeit ist keine Erinnerung vorgemerkt. Prüfe die Benachrichtigungs-"
+          + "Berechtigung in den Android-Einstellungen und schick eine Testbenachrichtigung."
+        : "Noch keine Einträge – daher auch nichts zu erinnern.";
+    } else if (n > 0){
+      stand.textContent = n + (n === 1 ? " Erinnerung vorgemerkt" : " Erinnerungen vorgemerkt")
+        + (naechst ? ", nächste am " + naechst.toLocaleDateString("de-DE")
+            + " um " + naechst.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "");
+    } else {
+      stand.textContent = "Planungsstand noch nicht abgefragt.";
+    }
+  }
   renderKatVerwaltung();
   applyTheme();
 }
-$("btn-settings").addEventListener("click", () => { renderSettings(); openModal("modal-settings"); });
+$("btn-settings").addEventListener("click", () => {
+  renderSettings();
+  openModal("modal-settings");
+  /* Beim Öffnen frisch beim System nachfragen – der Stand kann sich seit
+     dem letzten Planen geändert haben (Neustart, Berechtigung entzogen). */
+  Erinnerungen.standAbfragen();
+});
 
 $("s-export").addEventListener("click", async () => {
   const d = new Date();
