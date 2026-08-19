@@ -3,6 +3,8 @@
   "ausgabe": "..",
   "aufnahmen": {
     "url": "http://127.0.0.1:8931/index.html",
+    "breite": 540,
+    "hoehe": 1170,
     "anlauf": 1200,
     "vorbereiten": "localStorage.setItem('n2l_onboarding_done','true');",
     "schritte": [
@@ -46,7 +48,7 @@
       },
       {
         "breite": 360,
-        "hoehe": 640,
+        "hoehe": 780,
         "js": "window.N2L.Einst.set('theme','light'); applyTheme(); zeige('home'); render(); window.scrollTo(0,0)",
         "warten": 700,
         "datei": "roh-banner.png"
@@ -76,11 +78,9 @@
       "vollstaendig": false,
       "breite": 660,
       "rahmen": 26,
-      "oben_links": [645, 52],
-      "oben_rechts": [945, 14],
-      "kante_links": 519,
-      "kante_rechts": 493,
-      "_hinweis": "läuft unten bewusst aus dem Bild – erzeugt Tiefe"
+      "oben_links": [640, 50],
+      "oben_rechts": [933, 16],
+      "_hinweis": "läuft unten bewusst aus dem Bild – erzeugt Tiefe. Die Kantenlängen rechnet das Skript aus dem Seitenverhältnis der Aufnahme, damit das Telefon nicht verzerrt."
     }
   },
   "screenshots": {

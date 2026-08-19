@@ -57,8 +57,12 @@ const browser = await chromium.launch({
 });
 
 const seite = await browser.newPage({
-  viewport: { width: a.breite ?? 540, height: a.hoehe ?? 960 },
-  deviceScaleFactor: a.skalierung ?? 2,   // 540x960 @2 = 1080x1920
+  // 9:19,5 wie ein modernes Telefon (540x1170 @2 = 1080x2340). Eine
+  // 9:16-Aufnahme ergäbe im Geräterahmen ein Telefon, das breit wie ein
+  // Tablet wirkt – die Rückmeldung dazu kam prompt. storegrafik.py liest
+  // das Seitenverhältnis aus der Aufnahme und macht das Gerät passend.
+  viewport: { width: a.breite ?? 540, height: a.hoehe ?? 1170 },
+  deviceScaleFactor: a.skalierung ?? 2,
   isMobile: true,
   hasTouch: true,
   locale: a.sprache ?? "de-DE",
@@ -81,7 +85,7 @@ for (const s of a.schritte ?? []) {
   if (s.breite || s.hoehe) {
     await seite.setViewportSize({
       width: s.breite ?? a.breite ?? 540,
-      height: s.hoehe ?? a.hoehe ?? 960,
+      height: s.hoehe ?? a.hoehe ?? 1170,
     });
     await seite.waitForTimeout(250);
   }
