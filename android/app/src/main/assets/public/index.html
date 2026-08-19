@@ -299,6 +299,34 @@
   .katgrid button.neu{border-style:dashed;color:var(--accent);border-color:var(--accent-rand)}
   .katgrid button.neu:hover{background:var(--accent-soft)}
   .quickdates{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  /* ---------- Uhrzeit für tägliche Einträge ---------- */
+  /* input[type=time] fällt bewusst aus der globalen Eingabefeld-Regel heraus:
+     Statt eines schmalen Formularfelds bekommt die Uhrzeit eine große,
+     zentrierte Anzeige – sie ist bei täglichen Einträgen die Hauptangabe. */
+  .uhrfeld{display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;
+    background:var(--bg2);border:1px solid var(--line-stark);border-radius:var(--radius-s);
+    padding:16px 14px;transition:border-color .14s, box-shadow .14s}
+  .uhrfeld:hover{border-color:var(--accent-rand)}
+  .uhrfeld:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .uhrfeld .ic{width:27px;height:27px;color:var(--accent);stroke-width:1.6;flex:none}
+  .uhrfeld input[type=time]{background:none;border:none;padding:0;width:auto;font:inherit;
+    font-size:2.05rem;font-weight:700;line-height:1;color:var(--text);
+    font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .uhrfeld input[type=time]:focus{outline:none}
+  .uhrfeld input[type=time]::-webkit-calendar-picker-indicator{display:none}
+  .uhrfeld .einheit{font-size:.95rem;color:var(--text2);font-weight:640;align-self:flex-end;
+    padding-bottom:6px}
+  .zeitchips{display:flex;gap:8px;margin-top:9px}
+  .zeitchips button{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line-stark);
+    border-radius:var(--radius-xs);padding:9px 4px 8px;font:inherit;cursor:pointer;color:var(--text2);
+    display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2;
+    transition:border-color .14s, background .14s}
+  .zeitchips button b{font-size:.9rem;color:var(--text);font-variant-numeric:tabular-nums}
+  .zeitchips button span{font-size:.68rem;white-space:nowrap}
+  .zeitchips button:hover{border-color:var(--accent-rand)}
+  .zeitchips button.active{border-color:var(--accent);background:var(--accent-soft);
+    box-shadow:0 0 0 1px var(--accent) inset}
+  .zeitchips button.active b{color:var(--accent)}
   /* ---------- Erinnerungs-Editor ---------- */
   .remlist{list-style:none;margin:9px 0 0;padding:0;border:1px solid var(--line);
     border-radius:var(--radius-s);overflow:hidden}
@@ -558,7 +586,12 @@
 
       <div id="f-zeit-block" style="display:none">
         <label class="field" for="f-uhrzeit">Uhrzeit <span class="req">*</span></label>
-        <input type="time" id="f-uhrzeit" value="08:00">
+        <div class="uhrfeld" id="f-uhrfeld">
+          <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          <input type="time" id="f-uhrzeit" value="08:00">
+          <span class="einheit">Uhr</span>
+        </div>
+        <div class="zeitchips" id="f-zeit-quick"></div>
         <p class="hint">Die Erinnerung kommt jeden Tag zu dieser Uhrzeit – ohne dass
           du etwas abhaken musst. Ein Ablaufdatum braucht so ein Eintrag nicht.</p>
       </div>
@@ -2472,6 +2505,32 @@ function renderQuickdates(){
   }));
 }
 
+/* Schnellwahl für die tägliche Uhrzeit: die vier üblichen Zeiten als Chips.
+   Wer etwas anderes braucht, tippt die große Anzeige darüber an. */
+const ZEIT_CHIPS = [
+  { z: "08:00", l: "Morgens" }, { z: "12:00", l: "Mittags" },
+  { z: "18:00", l: "Abends" }, { z: "21:00", l: "Zur Nacht" }
+];
+function zeitChipsMarkieren(){
+  const v = $("f-uhrzeit").value;
+  $("f-zeit-quick").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("active", b.dataset.z === v));
+}
+$("f-zeit-quick").innerHTML = ZEIT_CHIPS.map(c =>
+  '<button type="button" data-z="' + c.z + '"><b>' + c.z + '</b><span>' + c.l + '</span></button>').join("");
+$("f-zeit-quick").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  $("f-uhrzeit").value = b.dataset.z;
+  zeitChipsMarkieren();
+}));
+$("f-uhrzeit").addEventListener("input", zeitChipsMarkieren);
+/* Die ganze Kachel öffnet die Zeitauswahl – nicht nur das schmale Zahlenfeld. */
+$("f-uhrfeld").addEventListener("click", e => {
+  if (e.target.id === "f-uhrzeit") return;
+  const z = $("f-uhrzeit");
+  if (z.showPicker){ try { z.showPicker(); } catch(_) { z.focus(); } }
+  else z.focus();
+});
+
 function formOeffnen(id){
   formId = id;
   const e = id ? Daten.get(id) : null;
@@ -2481,6 +2540,7 @@ function formOeffnen(id){
   formTypSetzen(e ? e.datumstyp : "ablauf");
   $("f-datum").value = e ? e.datum : "";
   $("f-uhrzeit").value = e ? Core.fmtUhrzeit(e.uhrzeit) : "08:00";
+  zeitChipsMarkieren();
   $("f-wiederholung").value = e && e.wiederholung !== "keine" ? e.wiederholung : "jaehrlich";
   $("f-referenz").value = e ? e.referenz : "";
   $("f-notiz").value = e ? e.notiz : "";

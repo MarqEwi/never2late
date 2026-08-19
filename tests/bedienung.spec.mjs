@@ -449,3 +449,22 @@ test("Einstellung „Bald fällig ab“ verschiebt den Status", async ({ page })
   await page.click('[data-close="modal-settings"]');
   await expect(page.locator("#home-inhalt .pill").first()).toContainText("Bald fällig");
 });
+
+test("Uhrzeit-Schnellwahl: Chips setzen die Zeit und zeigen die Auswahl", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.click('#f-datumstyp button[data-v="wiederkehrend"]');
+  await page.selectOption("#f-wiederholung", "taeglich");
+  await expect(page.locator("#f-zeit-block")).toBeVisible();
+
+  // Vorgabe 08:00 markiert den Morgens-Chip von selbst.
+  await expect(page.locator('#f-zeit-quick button[data-z="08:00"]')).toHaveClass(/active/);
+
+  await page.click('#f-zeit-quick button[data-z="18:00"]');
+  await expect(page.locator("#f-uhrzeit")).toHaveValue("18:00");
+  await expect(page.locator('#f-zeit-quick button[data-z="18:00"]')).toHaveClass(/active/);
+  await expect(page.locator('#f-zeit-quick button[data-z="08:00"]')).not.toHaveClass(/active/);
+
+  // Handeingabe abseits der Chips hebt jede Markierung auf.
+  await page.fill("#f-uhrzeit", "09:15");
+  await expect(page.locator("#f-zeit-quick button.active")).toHaveCount(0);
+});
