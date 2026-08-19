@@ -23,7 +23,10 @@ auf einen Blick sehen, was als Nächstes ansteht.
 - **Erinnerungen:** Standard 3 Monate / 1 Woche / 1 Tag vorher, je Eintrag
   anpassbar, ergänzbar und deaktivierbar – als lokale Benachrichtigungen
 - **Wiederkehrende Fristen:** jährlich, halbjährlich oder monatlich; nach
-  „Erledigt“ wird der nächste Termin automatisch berechnet
+  „Erledigt” wird der nächste Termin automatisch berechnet
+- **Täglich:** für alles, was jeden Tag ansteht (z. B. Tabletten) – feste
+  Uhrzeit statt Ablaufdatum, die Erinnerung wiederholt sich von selbst und
+  der Eintrag läuft nie ab
 - **Erneuern & Archivieren:** Einträge erneuern (neues Datum) oder ins Archiv
   verschieben – nichts geht verloren
 - **Liste:** Suche, Status- und Kategorie-Filter, das Dringendste zuerst

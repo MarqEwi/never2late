@@ -58,6 +58,9 @@ Und weil sich nicht alles in eine Schublade sortieren lässt, darf ein Eintrag z
 ERINNERUNGEN, DIE NICHT NERVEN
 Jeder Eintrag bekommt automatisch drei Erinnerungen: drei Monate, eine Woche und einen Tag vorher. Genug Vorlauf für einen Behördentermin, und trotzdem noch eine letzte Erinnerung kurz davor. Du kannst die Zeitpunkte je Eintrag ändern, weitere ergänzen oder alle abschalten. Die Meldungen sind kurz und sagen genau, worum es geht – zum Beispiel „Personalausweis läuft in 7 Tagen ab“.
 
+TÄGLICH WIEDERKEHREND
+Für alles, was jeden Tag ansteht – Tabletten, Tropfen, die tägliche Übung: Stell den Eintrag auf täglich und wähl eine Uhrzeit. Die Erinnerung kommt dann jeden Tag zur gleichen Zeit und wiederholt sich von selbst. Nichts abzuhaken, kein Ablaufdatum, und der Eintrag steht nie auf „abgelaufen".
+
 WIEDERKEHRENDE FRISTEN
 Manche Termine kommen jedes Jahr wieder: der jährliche Nachweis, die Vorsorgeuntersuchung, die Prüfung. Stell den Eintrag einmal auf monatlich, halbjährlich oder jährlich. Ein Tipp auf „Erledigt“ setzt den nächsten Termin – auf denselben Kalendertag, auch wenn ein Zyklus einmal ausgefallen ist. Bis dahin bleibt ein überfälliger Nachweis sichtbar überfällig; er verschwindet nicht einfach.
 
