@@ -327,6 +327,18 @@
   .zeitchips button.active{border-color:var(--accent);background:var(--accent-soft);
     box-shadow:0 0 0 1px var(--accent) inset}
   .zeitchips button.active b{color:var(--accent)}
+  /* ---------- Benutzerdefinierte Wiederholung ---------- */
+  .eigenzeile{display:flex;gap:8px;align-items:center;margin-top:9px}
+  .eigenzeile span{font-size:.9rem;color:var(--text2);font-weight:640;flex:none}
+  .eigenzeile input{width:80px;flex:none;text-align:center}
+  .eigenzeile select{flex:1}
+  .wtage{display:flex;gap:6px;margin-top:9px}
+  .wtage button{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line-stark);
+    border-radius:var(--radius-xs);padding:10px 0;font:inherit;font-size:.85rem;font-weight:640;
+    color:var(--text2);cursor:pointer;transition:border-color .14s, background .14s, color .14s}
+  .wtage button:hover{border-color:var(--accent-rand)}
+  .wtage button.active{border-color:var(--accent);background:var(--accent-soft);
+    color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
   /* ---------- Erinnerungs-Editor ---------- */
   .remlist{list-style:none;margin:9px 0 0;padding:0;border:1px solid var(--line);
     border-radius:var(--radius-s);overflow:hidden}
@@ -573,7 +585,25 @@
           <option value="monatlich">monatlich</option>
           <option value="halbjaehrlich">halbjährlich</option>
           <option value="jaehrlich">jährlich</option>
+          <option value="eigen">benutzerdefiniert …</option>
         </select>
+        <div id="f-eigen-block" style="display:none">
+          <div class="seg" id="f-eigen-art" style="margin-top:9px">
+            <button type="button" data-v="intervall" class="active">Im Abstand</button>
+            <button type="button" data-v="wochentage">An Wochentagen</button>
+          </div>
+          <div class="eigenzeile" id="f-eigen-intervall">
+            <span>Alle</span>
+            <input type="number" id="f-eigen-n" min="1" max="999" value="2" inputmode="numeric" aria-label="Anzahl">
+            <select id="f-eigen-einheit" aria-label="Einheit">
+              <option value="tage">Tage</option>
+              <option value="wochen" selected>Wochen</option>
+              <option value="monate">Monate</option>
+            </select>
+          </div>
+          <div class="wtage" id="f-eigen-wtage" style="display:none"></div>
+          <p class="hint" id="f-eigen-hint"></p>
+        </div>
       </div>
 
       <div id="f-datum-block">
@@ -592,7 +622,7 @@
           <span class="einheit">Uhr</span>
         </div>
         <div class="zeitchips" id="f-zeit-quick"></div>
-        <p class="hint">Die Erinnerung kommt jeden Tag zu dieser Uhrzeit – ohne dass
+        <p class="hint" id="f-zeit-hint">Die Erinnerung kommt jeden Tag zu dieser Uhrzeit – ohne dass
           du etwas abhaken musst. Ein Ablaufdatum braucht so ein Eintrag nicht.</p>
       </div>
     </div>
@@ -895,7 +925,52 @@ const Core = {
     halbjaehrlich: { label: "halbjährlich",  monate: 6 },
     jaehrlich:     { label: "jährlich",      monate: 12 }
   },
+  /* Benutzerdefinierte Rhythmen gibt es in zwei Naturen:
+     - "intervall"   – ein fester Abstand ("alle 2 Wochen", "jeden 3. Tag").
+       Verhält sich wie monatlich/jährlich: hat einen Termin, kann ablaufen,
+       "Erledigt" setzt den nächsten Zyklus. Details in e.wdh = {n, einheit}.
+     - "wochentage"  – feste Tage ("jeden Sa und So"). Verhält sich wie
+       täglich: Uhrzeit statt Datum, läuft nie ab, plant sich selbst neu.
+       Details in e.wdh = {tage:[1..7]} mit 1 = Montag … 7 = Sonntag. */
+  EINHEITEN: {
+    tage:   { tage: 1,  einzahl: "jeden Tag",   mehrzahl: "Tage" },
+    wochen: { tage: 7,  einzahl: "jede Woche",  mehrzahl: "Wochen" },
+    monate: { tage: 0,  einzahl: "jeden Monat", mehrzahl: "Monate" }
+  },
+  WOCHENTAGE: [
+    { n: 1, kurz: "Mo", label: "Montag" },   { n: 2, kurz: "Di", label: "Dienstag" },
+    { n: 3, kurz: "Mi", label: "Mittwoch" }, { n: 4, kurz: "Do", label: "Donnerstag" },
+    { n: 5, kurz: "Fr", label: "Freitag" },  { n: 6, kurz: "Sa", label: "Samstag" },
+    { n: 7, kurz: "So", label: "Sonntag" }
+  ],
   istTaeglich(e){ return !!e && e.wiederholung === "taeglich"; },
+  /* Läuft der Eintrag nach Uhrzeit statt nach Datum? (täglich oder feste
+     Wochentage) – solche Einträge kennen kein Ablaufen und kein "Erledigt". */
+  istZeitplan(e){ return !!e && (e.wiederholung === "taeglich" || e.wiederholung === "wochentage"); },
+  /* Ein Schritt des Zyklus als {monate} oder {tage}; null bei einmalig. */
+  wdhSchritt(e){
+    if (e.wiederholung === "intervall" && e.wdh){
+      return e.wdh.einheit === "monate" ? { monate: e.wdh.n }
+        : { tage: e.wdh.n * this.EINHEITEN[e.wdh.einheit].tage };
+    }
+    const w = this.WIEDERHOLUNGEN[e.wiederholung];
+    return w && w.monate ? { monate: w.monate } : null;
+  },
+  /* Rollt der Eintrag über "Erledigt" weiter? */
+  istRollend(e){ return !this.istZeitplan(e) && !!this.wdhSchritt(e); },
+  /* Menschlicher Name des Rhythmus – auch für die eigenen. */
+  wdhLabel(e){
+    if (e.wiederholung === "intervall" && e.wdh){
+      const einheit = this.EINHEITEN[e.wdh.einheit];
+      return e.wdh.n === 1 ? einheit.einzahl : "alle " + e.wdh.n + " " + einheit.mehrzahl;
+    }
+    if (e.wiederholung === "wochentage" && e.wdh){
+      const kurz = e.wdh.tage.map(t => this.WOCHENTAGE[t - 1].kurz);
+      return "jeden " + (kurz.length > 1
+        ? kurz.slice(0, -1).join(", ") + " und " + kurz[kurz.length - 1] : kurz[0]);
+    }
+    return (this.WIEDERHOLUNGEN[e.wiederholung] || this.WIEDERHOLUNGEN.keine).label;
+  },
   /* "08:00" -> { stunde: 8, minute: 0 }; ungültiges fällt auf 08:00 zurück. */
   zeitTeile(uhrzeit){
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(uhrzeit || ""));
@@ -960,10 +1035,10 @@ const Core = {
   status(e, heuteIso, fallback){
     if (!e) return null;
     if (e.archiviert) return "archiviert";
-    /* Ein Tagesrhythmus kann nicht ablaufen. Ohne diese Zeile stünde ein
-       Eintrag wie "Tabletten" ab dem nächsten Tag dauerhaft auf
-       "Abgelaufen" – die Ampel gilt nur für Fristen. */
-    if (this.istTaeglich(e)) return "aktiv";
+    /* Ein Zeitplan (täglich oder feste Wochentage) kann nicht ablaufen.
+       Ohne diese Zeile stünde ein Eintrag wie "Tabletten" ab dem nächsten
+       Tag dauerhaft auf "Abgelaufen" – die Ampel gilt nur für Fristen. */
+    if (this.istZeitplan(e)) return "aktiv";
     const tage = this.tageBis(e.datum, heuteIso || this.heute());
     if (tage < 0) return "abgelaufen";
     if (tage <= this.vorwarnTage(e, fallback)) return "bald";
@@ -975,15 +1050,16 @@ const Core = {
      jährlichen Nachweis nicht erbracht hat, soll ihn als "abgelaufen"
      sehen. Erst "Erledigt" setzt den nächsten Zyklus.                     */
   naechstesDatum(e, abIso){
-    const w = this.WIEDERHOLUNGEN[e.wiederholung] || this.WIEDERHOLUNGEN.keine;
     const ab = abIso || this.heute();
-    /* Täglich braucht kein "Erledigt": der nächste Termin ist immer morgen. */
-    if (w.tage) return this.addTage(ab, 1);
-    if (!w.monate) return null;
+    /* Ein Zeitplan braucht kein "Erledigt": der nächste Termin ist immer morgen. */
+    if (this.istZeitplan(e)) return this.addTage(ab, 1);
+    const s = this.wdhSchritt(e);
+    if (!s) return null;
     let d = e.datum, schutz = 0;
-    /* Vom bisherigen Termin aus weiterrollen, damit der Kalendertag erhalten
+    /* Vom bisherigen Termin aus weiterrollen, damit das Raster erhalten
        bleibt – auch wenn mehrere Zyklen versäumt wurden. */
-    do { d = this.addMonate(d, w.monate); } while (this.tageBis(d, ab) <= 0 && ++schutz < 400);
+    do { d = s.monate ? this.addMonate(d, s.monate) : this.addTage(d, s.tage); }
+    while (this.tageBis(d, ab) <= 0 && ++schutz < 3000);
     return d;
   },
 
@@ -995,22 +1071,30 @@ const Core = {
       21: "3 Wochen", 30: "1 Monat", 60: "2 Monate", 90: "3 Monate", 180: "6 Monate", 365: "1 Jahr" };
     return (map[tage] || tage + " Tage") + " vorher";
   },
-  /* Nächster Zeitpunkt eines täglichen Eintrags: heute zur Uhrzeit, wenn die
-     noch bevorsteht, sonst morgen. Nur für die Anzeige – eingeplant wird der
-     Tagesrhythmus als echte Wiederholung, nicht als Einzeltermin. */
+  /* Nächster Zeitpunkt eines Zeitplan-Eintrags: heute zur Uhrzeit, wenn die
+     noch bevorsteht, sonst der nächste erlaubte Tag. Nur für die Anzeige –
+     eingeplant wird der Rhythmus als echte Wiederholung, nicht als
+     Einzeltermin. */
   tagesZeitpunkt(e, jetzt){
-    if (!this.istTaeglich(e)) return null;
+    if (!this.istZeitplan(e)) return null;
     const t = this.zeitTeile(e.uhrzeit);
     const now = jetzt instanceof Date ? jetzt : new Date();
     const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), t.stunde, t.minute, 0, 0);
     if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+    if (e.wiederholung === "wochentage"){
+      /* JS zählt 0 = Sonntag; wir zählen 1 = Montag … 7 = Sonntag. */
+      const erlaubt = e.wdh.tage;
+      let schutz = 0;
+      while (erlaubt.indexOf(at.getDay() === 0 ? 7 : at.getDay()) < 0 && ++schutz < 8)
+        at.setDate(at.getDate() + 1);
+    }
     return at;
   },
   termine(e, jetzt){
     if (!e || e.archiviert || e.erinnerungenAn === false || !this.istIso(e.datum)) return [];
-    /* Tägliche Einträge haben keine Vorlaufzeiten – sie melden sich am Tag
+    /* Zeitplan-Einträge haben keine Vorlaufzeiten – sie melden sich am Tag
        selbst zur festen Uhrzeit. Sie werden getrennt eingeplant. */
-    if (this.istTaeglich(e)) return [];
+    if (this.istZeitplan(e)) return [];
     const now = jetzt instanceof Date ? jetzt : new Date();
     return (e.erinnerungen || []).filter(r => r.an).map(r => {
       const tag = this.addTage(e.datum, -r.tage).split("-").map(Number);
@@ -1020,10 +1104,10 @@ const Core = {
   },
   /* Text der Benachrichtigung – sachlich und knapp, wie besprochen. */
   meldung(e, tage){
-    if (this.istTaeglich(e)){
+    if (this.istZeitplan(e)){
       return {
         titel: e.titel,
-        text: this.katLabels(e) + " · täglich um " + this.fmtUhrzeit(e.uhrzeit) + " Uhr"
+        text: this.katLabels(e) + " · " + this.wdhLabel(e) + " um " + this.fmtUhrzeit(e.uhrzeit) + " Uhr"
       };
     }
     const t = this.datumstyp(e.datumstyp);
@@ -1096,13 +1180,26 @@ const Core = {
     kats = kats.filter((id, i) => kats.indexOf(id) === i && !!this.kategorie(id));
     if (!kats.length) kats = ["sonstiges"];
     const typOk = !!this.DATUMSTYPEN[e.datumstyp];
-    let wdh = this.WIEDERHOLUNGEN[e.wiederholung] ? e.wiederholung : "keine";
+    /* Wiederholung prüfen – auch die benutzerdefinierten Formen. Was nicht
+       vollständig ist (Intervall ohne Zahl, Wochentage ohne Tag), fällt auf
+       "keine" zurück statt einen halben Rhythmus zu speichern. */
+    let wdh = "keine", wdhDaten = null;
+    if (e.wiederholung === "intervall"){
+      const n = Math.round(Number(e.wdh && e.wdh.n));
+      const einheit = this.EINHEITEN[e.wdh && e.wdh.einheit] ? e.wdh.einheit : null;
+      if (Number.isFinite(n) && n >= 1 && n <= 999 && einheit){ wdh = "intervall"; wdhDaten = { n, einheit }; }
+    } else if (e.wiederholung === "wochentage"){
+      let tage = Array.isArray(e.wdh && e.wdh.tage) ? e.wdh.tage.map(Number) : [];
+      tage = tage.filter((t, i) => t >= 1 && t <= 7 && Number.isInteger(t) && tage.indexOf(t) === i)
+        .sort((a, b) => a - b);
+      if (tage.length){ wdh = "wochentage"; wdhDaten = { tage }; }
+    } else if (this.WIEDERHOLUNGEN[e.wiederholung]) wdh = e.wiederholung;
     const typ = typOk ? e.datumstyp : "ablauf";
     /* Ein wiederkehrender Eintrag braucht zwingend einen Zyklus, ein
        einmaliger darf keinen haben – sonst laufen Anzeige und Berechnung
        auseinander. */
     if (typ === "wiederkehrend" && wdh === "keine") wdh = "jaehrlich";
-    if (typ !== "wiederkehrend") wdh = "keine";
+    if (typ !== "wiederkehrend"){ wdh = "keine"; wdhDaten = null; }
     const rem = Array.isArray(e.erinnerungen) ? e.erinnerungen : this.STANDARD_ERINNERUNGEN.map(t => ({ tage: t, an: true }));
     const remClean = [];
     rem.forEach(r => {
@@ -1119,7 +1216,9 @@ const Core = {
       datumstyp: typ,
       datum: this.istIso(e.datum) ? e.datum : this.heute(),
       wiederholung: wdh,
-      /* Nur bei täglichen Einträgen von Bedeutung; sonst mitgeführt, damit
+      /* Details der benutzerdefinierten Rhythmen; null bei den festen. */
+      wdh: wdhDaten,
+      /* Nur bei Zeitplan-Einträgen von Bedeutung; sonst mitgeführt, damit
          ein Wechsel des Rhythmus die einmal gewählte Uhrzeit nicht verliert. */
       uhrzeit: this.fmtUhrzeit(e.uhrzeit),
       erinnerungen: remClean,
@@ -1575,21 +1674,29 @@ const Erinnerungen = {
       const einmalig = [];   /* je ein fester Zeitpunkt */
       Daten.alle().forEach(e => {
         if (e.archiviert || e.erinnerungenAn === false) return;
-        if (Core.istTaeglich(e)){
-          /* Der "on"-Zeitplan des Plugins feuert jeden Tag zur genannten
-             Uhrzeit und plant sich nach jedem Auslösen selbst neu ein.
-             Der naheliegende Weg (at + repeats) wäre falsch: Das Plugin
-             errechnet den Wiederholabstand dort aus dem Abstand bis zum
-             ERSTEN Auslösen – "morgen 8 Uhr" um 17 Uhr geplant ergäbe eine
-             Wiederholung alle 15 Stunden. */
+        if (Core.istZeitplan(e)){
+          /* Der "on"-Zeitplan des Plugins feuert zur genannten Uhrzeit und
+             plant sich nach jedem Auslösen selbst neu ein. Der naheliegende
+             Weg (at + repeats) wäre falsch: Das Plugin errechnet den
+             Wiederholabstand dort aus dem Abstand bis zum ERSTEN Auslösen –
+             "morgen 8 Uhr" um 17 Uhr geplant ergäbe eine Wiederholung alle
+             15 Stunden.
+             Feste Wochentage bekommen je Tag einen eigenen "on"-Zeitplan mit
+             weekday; das Plugin zählt dort wie java.util.Calendar
+             (1 = Sonntag … 7 = Samstag), wir zählen 1 = Montag … 7 = Sonntag. */
           const t = Core.zeitTeile(e.uhrzeit);
           const m = Core.meldung(e);
-          taeglich.push({
-            id: Core.notifId(e.id, "taeglich"),
-            title: m.titel,
-            body: m.text,
-            schedule: { on: { hour: t.stunde, minute: t.minute }, allowWhileIdle: true },
-            extra: { eintragId: e.id }
+          const tage = e.wiederholung === "wochentage" ? e.wdh.tage : [null];
+          tage.forEach(w => {
+            const on = { hour: t.stunde, minute: t.minute };
+            if (w) on.weekday = (w % 7) + 1;
+            taeglich.push({
+              id: Core.notifId(e.id, w ? "w" + w : "taeglich"),
+              title: m.titel,
+              body: m.text,
+              schedule: { on, allowWhileIdle: true },
+              extra: { eintragId: e.id }
+            });
           });
           return;
         }
@@ -1654,7 +1761,7 @@ const Erinnerungen = {
     const merke = at => { if (at && (!fruehester || at < fruehester)) fruehester = at; };
     Daten.alle().forEach(e => {
       if (e.archiviert || e.erinnerungenAn === false) return;
-      if (Core.istTaeglich(e)){ merke(Core.tagesZeitpunkt(e, jetzt)); return; }
+      if (Core.istZeitplan(e)){ merke(Core.tagesZeitpunkt(e, jetzt)); return; }
       Core.termine(e, jetzt).forEach(t => { if (t.kuenftig) merke(t.at); });
     });
     return fruehester;
@@ -1724,6 +1831,18 @@ const Kalender = {
   _stamp(){ return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); },
   RRULE: { taeglich: "FREQ=DAILY", monatlich: "FREQ=MONTHLY",
            halbjaehrlich: "FREQ=MONTHLY;INTERVAL=6", jaehrlich: "FREQ=YEARLY" },
+  /* Wiederholungsregel des Eintrags – deckt auch die eigenen Rhythmen ab. */
+  rrule(e){
+    if (e.wiederholung === "intervall" && e.wdh){
+      const freq = { tage: "DAILY", wochen: "WEEKLY", monate: "MONTHLY" }[e.wdh.einheit];
+      return "FREQ=" + freq + (e.wdh.n > 1 ? ";INTERVAL=" + e.wdh.n : "");
+    }
+    if (e.wiederholung === "wochentage" && e.wdh){
+      const by = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+      return "FREQ=WEEKLY;BYDAY=" + e.wdh.tage.map(t => by[t - 1]).join(",");
+    }
+    return this.RRULE[e.wiederholung] || null;
+  },
 
   ics(e){
     const kompakt = iso => iso.replace(/-/g, "");
@@ -1745,7 +1864,7 @@ const Kalender = {
       "DESCRIPTION:" + this._esc(beschreibung),
       "TRANSP:TRANSPARENT"
     ];
-    const rr = this.RRULE[e.wiederholung];
+    const rr = this.rrule(e);
     if (rr) zeilen.push("RRULE:" + rr);
     /* Die aktiven Erinnerungen wandern als Alarme mit in den Termin. */
     (e.erinnerungenAn === false ? [] : (e.erinnerungen || []).filter(r => r.an)).forEach(r => {
@@ -1980,23 +2099,26 @@ document.querySelectorAll(".modal-back").forEach(m => m.addEventListener("click"
 function statusPill(st){
   return '<span class="pill s-' + st + '"><span class="dot"></span>' + Core.STATUS[st].label + "</span>";
 }
-/* "heute um 08:00 Uhr" bzw. "morgen um 08:00 Uhr" */
+/* "heute um 08:00 Uhr", "morgen …" oder "am Samstag …" bei Wochentagen. */
 function naechsteTagesMeldung(e){
   const at = Core.tagesZeitpunkt(e);
   if (!at) return "";
   const heuteIso = Core.heute();
   const atIso = Core.iso(at.getFullYear(), at.getMonth() + 1, at.getDate());
-  return (atIso === heuteIso ? "heute" : "morgen") + " um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr";
+  const wann = atIso === heuteIso ? "heute"
+    : atIso === Core.addTage(heuteIso, 1) ? "morgen"
+    : "am " + Core.WOCHENTAGE[(at.getDay() === 0 ? 7 : at.getDay()) - 1].label;
+  return wann + " um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr";
 }
 function zeileHtml(e, heute){
   const st = Core.status(e, heute, Einst.werte.vorwarnTage);
   const kats = Core.kategorienVon(e);
   const typ = Core.datumstyp(e.datumstyp);
-  const tgl = Core.istTaeglich(e);
-  const wdh = (!tgl && e.wiederholung !== "keine") ? " · " + Core.WIEDERHOLUNGEN[e.wiederholung].label : "";
-  /* Täglich hat kein Datum und keinen Countdown – dort steht die Uhrzeit. */
+  const tgl = Core.istZeitplan(e);
+  const wdh = (!tgl && e.wiederholung !== "keine") ? " · " + Core.wdhLabel(e) : "";
+  /* Ein Zeitplan hat kein Datum und keinen Countdown – dort steht die Uhrzeit. */
   const zeile2 = tgl
-    ? "täglich um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
+    ? Core.wdhLabel(e) + " um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
     : typ.kurz + " " + Core.fmtDatum(e.datum) + wdh;
   const rechts = e.archiviert ? "" : tgl ? "läuft" : Core.fmtRest(e.datum, heute);
   /* In der Zeile ist wenig Platz: das Symbol der ersten Kategorie, und bei
@@ -2039,12 +2161,12 @@ function renderHome(){
     return;
   }
 
-  /* Tägliche Einträge sind keine Fristen: Sie laufen nicht ab, tauchen
-     deshalb weder in der Kopfkarte noch in den Kennzahlen auf, sondern
-     bekommen einen eigenen Abschnitt. */
-  const taeglich = Core.sortieren(offen.filter(e => Core.istTaeglich(e)), heute, fb);
+  /* Zeitplan-Einträge (täglich oder feste Wochentage) sind keine Fristen:
+     Sie laufen nicht ab, tauchen deshalb weder in der Kopfkarte noch in den
+     Kennzahlen auf, sondern bekommen einen eigenen Abschnitt. */
+  const taeglich = Core.sortieren(offen.filter(e => Core.istZeitplan(e)), heute, fb);
   const gruppen = { abgelaufen: [], bald: [], aktiv: [] };
-  offen.filter(e => !Core.istTaeglich(e))
+  offen.filter(e => !Core.istZeitplan(e))
     .forEach(e => gruppen[Core.status(e, heute, fb)].push(e));
   Object.keys(gruppen).forEach(k => gruppen[k] = Core.sortieren(gruppen[k], heute, fb));
 
@@ -2089,7 +2211,7 @@ function renderHome(){
   }
 
   if (taeglich.length){
-    html += "<h3>Jeden Tag</h3>" + listeHtml(taeglich, heute);
+    html += "<h3>Regelmäßig</h3>" + listeHtml(taeglich, heute);
   }
 
   if (gruppen.aktiv.length){
@@ -2193,9 +2315,8 @@ function renderDetail(){
   const heute = Core.heute();
   const st = Core.status(e, heute, Einst.werte.vorwarnTage);
   const kats = Core.kategorienVon(e), typ = Core.datumstyp(e.datumstyp);
-  const wdh = Core.WIEDERHOLUNGEN[e.wiederholung];
   const aktiveRem = (e.erinnerungen || []).filter(r => r.an);
-  const tgl = Core.istTaeglich(e);
+  const tgl = Core.istZeitplan(e);
 
   let html = '<div class="detail-head"><span class="kat" aria-hidden="true">' + kats[0].emoji + "</span>"
     + "<div><h2>" + esc(e.titel) + "</h2>"
@@ -2203,7 +2324,9 @@ function renderDetail(){
     + kats.map(k => '<span class="katchip">' + k.emoji + " " + esc(k.label) + "</span>").join("")
     + "</div></div></div>"
     + '<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
-    + "<div><div class=\"muted\">" + (tgl ? "Jeden Tag um" : typ.label) + "</div>"
+    + "<div><div class=\"muted\">" + (tgl
+      ? (Core.istTaeglich(e) ? "Jeden Tag um" : Core.wdhLabel(e).replace(/^jeden/, "Jeden") + " um")
+      : typ.label) + "</div>"
     + '<div class="bigdate">' + (tgl ? Core.fmtUhrzeit(e.uhrzeit) + " Uhr" : Core.fmtDatum(e.datum))
     + '<span class="rest">' + (e.archiviert ? "archiviert"
         : tgl ? "nächste Erinnerung " + naechsteTagesMeldung(e) : Core.fmtRest(e.datum, heute))
@@ -2218,18 +2341,18 @@ function renderDetail(){
   if (tgl){
     html += '<p class="hint">Die Erinnerung wiederholt sich von selbst. Du musst nichts '
       + "abhaken – und der Eintrag läuft nie ab.</p>";
-  } else if (wdh.monate){
+  } else if (Core.istRollend(e)){
     const naechst = Core.naechstesDatum(e, heute);
-    html += '<p class="hint">Wiederkehrend (' + wdh.label + "). Nach „Erledigt“ ist der nächste Termin am <b>"
+    html += '<p class="hint">Wiederkehrend (' + Core.wdhLabel(e) + "). Nach „Erledigt“ ist der nächste Termin am <b>"
       + Core.fmtDatum(naechst) + "</b>.</p>";
   }
   html += "</div>";
 
   html += '<div class="card"><dl class="dl">';
   html += "<dt>Erinnerungen</dt><dd>" + (e.erinnerungenAn === false ? "aus"
-    : tgl ? "täglich um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
+    : tgl ? Core.wdhLabel(e) + " um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
     : !aktiveRem.length ? "aus" : aktiveRem.map(r => Core.erinnerungLabel(r.tage)).join(", ")) + "</dd>";
-  html += "<dt>Wiederholung</dt><dd>" + wdh.label + "</dd>";
+  html += "<dt>Wiederholung</dt><dd>" + Core.wdhLabel(e) + "</dd>";
   if (e.referenz) html += "<dt>Nummer</dt><dd>" + esc(e.referenz) + "</dd>";
   if (e.notiz) html += "<dt>Notiz</dt><dd>" + esc(e.notiz).replace(/\n/g, "<br>") + "</dd>";
   if (e.erledigtAm) html += "<dt>Zuletzt erneuert</dt><dd>" + esc(new Date(e.erledigtAm).toLocaleDateString("de-DE")) + "</dd>";
@@ -2239,7 +2362,7 @@ function renderDetail(){
      läuft von selbst. Der Knopf entfällt deshalb. */
   html += '<div class="actions">'
     + (tgl ? "" : '<button class="btn" id="d-erneuern"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/></svg>'
-      + (wdh.monate ? "Erledigt" : "Erneuert") + "</button>")
+      + (Core.istRollend(e) ? "Erledigt" : "Erneuert") + "</button>")
     + '<button class="btn secondary" id="d-bearbeiten"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 10-4-4L4 16z"/></svg>Bearbeiten</button>'
     + '<button class="btn secondary" id="d-kalender"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>In Kalender</button>'
     + '<button class="btn secondary" id="d-archiv"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v12h14V8M10 12h4"/></svg>'
@@ -2395,8 +2518,7 @@ $("s-kat-neu").addEventListener("click", () => katDialog(null));
    Wiederkehrende Einträge springen direkt in den nächsten Zyklus.
    Einmalige Einträge fragen nach dem neuen Datum, mit Schnellwahl.      */
 function erneuernOeffnen(e){
-  const wdh = Core.WIEDERHOLUNGEN[e.wiederholung];
-  if (wdh.monate){
+  if (Core.istRollend(e)){
     const neu = Core.naechstesDatum(e, Core.heute());
     Daten.erneuern(e.id, neu);
     toast("Erledigt – nächster Termin am " + Core.fmtDatum(neu));
@@ -2464,10 +2586,38 @@ function renderRemListe(){
     formRem.splice(Number(b.dataset.del), 1); renderRemListe();
   }));
 }
-/* Täglich ist der einzige Rhythmus ohne Datum – dort tritt die Uhrzeit an
-   die Stelle des Ablaufdatums, und die Erinnerungsliste entfällt. */
+/* Benutzerdefinierte Wiederholung: "Im Abstand" (alle N Tage/Wochen/Monate)
+   oder "An Wochentagen" (z. B. jeden Sa und So). */
+let formEigenArt = "intervall";  /* welcher der beiden Bausteine gewählt ist */
+let formWTage = [6, 7];          /* gewählte Wochentage, 1 = Mo … 7 = So */
+
+/* Zeitmodus: Uhrzeit statt Datum – bei täglich und bei festen Wochentagen.
+   Dort entfällt auch die Erinnerungsliste mit Vorlaufzeiten. */
 function formTaeglich(){
-  return formTyp === "wiederkehrend" && $("f-wiederholung").value === "taeglich";
+  const w = $("f-wiederholung").value;
+  return formTyp === "wiederkehrend"
+    && (w === "taeglich" || (w === "eigen" && formEigenArt === "wochentage"));
+}
+/* Der Rhythmus, wie ihn das Formular gerade beschreibt – als Datenmodell. */
+function formWdhWert(){
+  if (formTyp !== "wiederkehrend") return { wiederholung: "keine", wdh: null };
+  const w = $("f-wiederholung").value;
+  if (w !== "eigen") return { wiederholung: w, wdh: null };
+  if (formEigenArt === "wochentage")
+    return { wiederholung: "wochentage", wdh: { tage: formWTage.slice().sort((a, b) => a - b) } };
+  const n = Math.round(Number($("f-eigen-n").value));
+  return { wiederholung: "intervall",
+           wdh: Number.isFinite(n) && n >= 1 ? { n: Math.min(999, n), einheit: $("f-eigen-einheit").value } : null };
+}
+function renderWTage(){
+  $("f-eigen-wtage").innerHTML = Core.WOCHENTAGE.map(t =>
+    '<button type="button" data-t="' + t.n + '"' + (formWTage.indexOf(t.n) >= 0 ? ' class="active"' : "")
+    + ' aria-label="' + t.label + '">' + t.kurz + "</button>").join("");
+  $("f-eigen-wtage").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const n = Number(b.dataset.t), i = formWTage.indexOf(n);
+    if (i >= 0) formWTage.splice(i, 1); else formWTage.push(n);
+    renderWTage(); formAnsichtSetzen();
+  }));
 }
 function formTypSetzen(v){
   formTyp = v;
@@ -2477,20 +2627,36 @@ function formTypSetzen(v){
   formAnsichtSetzen();
 }
 function formAnsichtSetzen(){
+  const eigen = formTyp === "wiederkehrend" && $("f-wiederholung").value === "eigen";
+  $("f-eigen-block").style.display = eigen ? "" : "none";
+  $("f-eigen-art").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("active", b.dataset.v === formEigenArt));
+  $("f-eigen-intervall").style.display = formEigenArt === "intervall" ? "" : "none";
+  $("f-eigen-wtage").style.display = formEigenArt === "wochentage" ? "" : "none";
   const tgl = formTaeglich();
   $("f-datum-block").style.display = tgl ? "none" : "";
   $("f-zeit-block").style.display = tgl ? "" : "none";
-  /* Vorlaufzeiten ergeben bei einem Tagesrhythmus keinen Sinn. */
+  /* Vorlaufzeiten ergeben bei einem Zeitplan keinen Sinn. */
   $("f-rem-karte").style.display = tgl ? "none" : "";
+  if (tgl){
+    const w = formWdhWert();
+    $("f-zeit-hint").textContent = (w.wiederholung === "wochentage"
+      ? "Die Erinnerung kommt an den gewählten Tagen zu dieser Uhrzeit"
+      : "Die Erinnerung kommt jeden Tag zu dieser Uhrzeit")
+      + " – ohne dass du etwas abhaken musst. Ein Ablaufdatum braucht so ein Eintrag nicht.";
+  }
   formWdhHint();
 }
 function formWdhHint(){
   const hint = $("f-wdh-hint");
   if (formTyp !== "wiederkehrend" || formTaeglich()){ hint.textContent = ""; return; }
   const d = $("f-datum").value;
-  const w = Core.WIEDERHOLUNGEN[$("f-wiederholung").value];
+  const w = formWdhWert();
+  const s = Core.wdhSchritt({ wiederholung: w.wiederholung, wdh: w.wdh });
+  if (!s){ hint.textContent = ""; return; }
   hint.textContent = Core.istIso(d)
-    ? "Nach „Erledigt“ steht der nächste Termin automatisch auf dem " + Core.fmtDatum(Core.addMonate(d, w.monate)) + "."
+    ? "Nach „Erledigt“ steht der nächste Termin automatisch auf dem "
+      + Core.fmtDatum(s.monate ? Core.addMonate(d, s.monate) : Core.addTage(d, s.tage)) + "."
     : "Nach „Erledigt“ wird der nächste Termin automatisch berechnet.";
 }
 function renderQuickdates(){
@@ -2541,7 +2707,16 @@ function formOeffnen(id){
   $("f-datum").value = e ? e.datum : "";
   $("f-uhrzeit").value = e ? Core.fmtUhrzeit(e.uhrzeit) : "08:00";
   zeitChipsMarkieren();
-  $("f-wiederholung").value = e && e.wiederholung !== "keine" ? e.wiederholung : "jaehrlich";
+  /* Benutzerdefinierte Rhythmen stehen im Auswahlfeld als "eigen" und
+     bringen ihre Details in den Bausteinen darunter mit. */
+  const w = e ? e.wiederholung : null;
+  formEigenArt = w === "wochentage" ? "wochentage" : "intervall";
+  formWTage = w === "wochentage" ? e.wdh.tage.slice() : [6, 7];
+  if (w === "intervall"){ $("f-eigen-n").value = e.wdh.n; $("f-eigen-einheit").value = e.wdh.einheit; }
+  else { $("f-eigen-n").value = 2; $("f-eigen-einheit").value = "wochen"; }
+  renderWTage();
+  $("f-wiederholung").value = w === "intervall" || w === "wochentage" ? "eigen"
+    : e && w !== "keine" ? w : "jaehrlich";
   $("f-referenz").value = e ? e.referenz : "";
   $("f-notiz").value = e ? e.notiz : "";
   $("f-rem-an").checked = e ? e.erinnerungenAn !== false : true;
@@ -2559,6 +2734,11 @@ function formOeffnen(id){
 $("f-datumstyp").querySelectorAll("button").forEach(b =>
   b.addEventListener("click", () => formTypSetzen(b.dataset.v)));
 $("f-wiederholung").addEventListener("change", formAnsichtSetzen);
+$("f-eigen-art").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  formEigenArt = b.dataset.v; formAnsichtSetzen();
+}));
+$("f-eigen-n").addEventListener("input", formWdhHint);
+$("f-eigen-einheit").addEventListener("change", formWdhHint);
 $("f-datum").addEventListener("change", formWdhHint);
 $("f-rem-an").addEventListener("change", () => {
   $("f-rem-block").style.opacity = $("f-rem-an").checked ? "1" : ".45";
@@ -2595,13 +2775,20 @@ $("f-speichern").addEventListener("click", () => {
   const datumOk = Core.istIso(datum);
   $("f-datum-err").classList.toggle("show", !tgl && !datumOk); if (!datumOk) ok = false;
   if (!formKats.length){ toast("Bitte mindestens eine Kategorie wählen"); ok = false; }
+  const wdhWert = formWdhWert();
+  if (wdhWert.wiederholung === "wochentage" && !wdhWert.wdh.tage.length){
+    toast("Bitte mindestens einen Wochentag wählen"); ok = false;
+  }
+  if (wdhWert.wiederholung === "intervall" && !wdhWert.wdh){
+    toast("Bitte beim Abstand eine Zahl ab 1 eingeben"); ok = false;
+  }
   if (!ok) return;
   const alt = formId ? Daten.get(formId) : null;
   const e = Daten.upsert({
     id: formId || undefined,
     titel, kategorien: formKats.slice(), datumstyp: formTyp, datum,
     uhrzeit: $("f-uhrzeit").value,
-    wiederholung: formTyp === "wiederkehrend" ? $("f-wiederholung").value : "keine",
+    wiederholung: wdhWert.wiederholung, wdh: wdhWert.wdh,
     erinnerungen: formRem, erinnerungenAn: $("f-rem-an").checked,
     referenz: $("f-referenz").value, notiz: $("f-notiz").value,
     archiviert: alt ? alt.archiviert : false,

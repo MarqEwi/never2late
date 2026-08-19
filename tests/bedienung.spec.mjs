@@ -468,3 +468,47 @@ test("Uhrzeit-Schnellwahl: Chips setzen die Zeit und zeigen die Auswahl", async 
   await page.fill("#f-uhrzeit", "09:15");
   await expect(page.locator("#f-zeit-quick button.active")).toHaveCount(0);
 });
+
+test("Benutzerdefinierte Wiederholung: Abstand und Wochentage über das Formular", async ({ page }) => {
+  // Im Abstand: alle 3 Tage
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Blumen gießen");
+  await page.click('#f-kategorie button[data-k="sonstiges"]');
+  await page.click('#f-datumstyp button[data-v="wiederkehrend"]');
+  await page.selectOption("#f-wiederholung", "eigen");
+  await expect(page.locator("#f-eigen-intervall")).toBeVisible();
+  await page.fill("#f-eigen-n", "3");
+  await page.selectOption("#f-eigen-einheit", "tage");
+  await page.fill("#f-datum", inTagen(1));
+  await page.click("#f-speichern");
+  await page.waitForSelector("#view-detail.active");
+  await expect(page.locator("#detail-inhalt")).toContainText("alle 3 Tage");
+  await expect(page.locator("#detail-inhalt")).toContainText("Erledigt");
+
+  // An Wochentagen: Sa und So, mit Uhrzeit statt Datum
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Wochenend-Tabletten");
+  await page.click('#f-kategorie button[data-k="gesundheit"]');
+  await page.click('#f-datumstyp button[data-v="wiederkehrend"]');
+  await page.selectOption("#f-wiederholung", "eigen");
+  await page.click('#f-eigen-art button[data-v="wochentage"]');
+  await expect(page.locator("#f-zeit-block")).toBeVisible();
+  await expect(page.locator('#f-eigen-wtage button[data-t="6"]')).toHaveClass(/active/);
+  await expect(page.locator('#f-eigen-wtage button[data-t="7"]')).toHaveClass(/active/);
+  await page.click("#f-speichern");
+  await page.waitForSelector("#view-detail.active");
+  await expect(page.locator("#detail-inhalt")).toContainText("jeden Sa und So");
+  // Ein Zeitplan kennt kein "Erledigt"
+  await expect(page.locator("#d-erneuern")).toHaveCount(0);
+
+  // Beim erneuten Öffnen stehen die gewählten Werte wieder im Formular
+  await page.click("#d-bearbeiten");
+  await expect(page.locator("#f-wiederholung")).toHaveValue("eigen");
+  await expect(page.locator('#f-eigen-art button[data-v="wochentage"]')).toHaveClass(/active/);
+
+  // Ohne einen einzigen Wochentag wird nicht gespeichert
+  await page.click('#f-eigen-wtage button[data-t="6"]');
+  await page.click('#f-eigen-wtage button[data-t="7"]');
+  await page.click("#f-speichern");
+  await expect(page.locator("#view-form")).toHaveClass(/active/);
+});
