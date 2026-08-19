@@ -58,6 +58,10 @@ export function capacitorMock(){
           }));
           const ids = neu.map(n => n.id);
           window.__geplant = (window.__geplant || []).filter(n => ids.indexOf(n.id) < 0).concat(neu);
+          // Zeitplan roh mitschreiben: nur so lässt sich prüfen, ob "on"
+          // (echte Wiederholung) oder "at" (Einzeltermin) verwendet wurde.
+          window.__zeitplan = o.notifications.map(n =>
+            JSON.parse(JSON.stringify(n.schedule || {})));
           merke("LocalNotifications.schedule", { anzahl: neu.length });
         }
       }

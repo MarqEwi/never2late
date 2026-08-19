@@ -522,23 +522,33 @@
         <button type="button" data-v="wiederkehrend">Wiederkehrend</button>
       </div>
 
-      <label class="field" for="f-datum"><span id="f-datum-label">Gültig bis</span> <span class="req">*</span></label>
-      <input type="date" id="f-datum">
-      <div class="quickdates" id="f-quickdates"></div>
-      <p class="err" id="f-datum-err">Bitte gib ein gültiges Datum ein.</p>
-
       <div id="f-wdh-block" style="display:none">
         <label class="field" for="f-wiederholung">Wiederholt sich</label>
         <select id="f-wiederholung">
-          <option value="jaehrlich">jährlich</option>
-          <option value="halbjaehrlich">halbjährlich</option>
+          <option value="taeglich">täglich</option>
           <option value="monatlich">monatlich</option>
+          <option value="halbjaehrlich">halbjährlich</option>
+          <option value="jaehrlich">jährlich</option>
         </select>
+      </div>
+
+      <div id="f-datum-block">
+        <label class="field" for="f-datum"><span id="f-datum-label">Gültig bis</span> <span class="req">*</span></label>
+        <input type="date" id="f-datum">
+        <div class="quickdates" id="f-quickdates"></div>
+        <p class="err" id="f-datum-err">Bitte gib ein gültiges Datum ein.</p>
         <p class="hint" id="f-wdh-hint"></p>
+      </div>
+
+      <div id="f-zeit-block" style="display:none">
+        <label class="field" for="f-uhrzeit">Uhrzeit <span class="req">*</span></label>
+        <input type="time" id="f-uhrzeit" value="08:00">
+        <p class="hint">Die Erinnerung kommt jeden Tag zu dieser Uhrzeit – ohne dass
+          du etwas abhaken musst. Ein Ablaufdatum braucht so ein Eintrag nicht.</p>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="f-rem-karte">
       <div class="switchrow" style="padding-top:2px">
         <div class="txt"><b>Erinnerungen</b><span id="f-rem-sub">Rechtzeitig benachrichtigt werden</span></div>
         <label class="switch"><input type="checkbox" id="f-rem-an" checked><span class="track"></span></label>
@@ -825,11 +835,27 @@ const Core = {
 
   /* ---- Wiederholung. Werte in Monaten, damit ein Zyklus immer auf dem
          gleichen Kalendertag landet (Monatsende wird gekappt). ---- */
+  /* "taeglich" ist bewusst anders gebaut als der Rest: Ein Tagesrhythmus hat
+     kein Ablaufdatum, sondern eine Uhrzeit. Solche Einträge laufen nie ab,
+     brauchen kein „Erledigt" und werden als echte Wiederholung eingeplant
+     (siehe Erinnerungen.neuPlanen). */
   WIEDERHOLUNGEN: {
     keine:         { label: "einmalig",      monate: 0 },
+    taeglich:      { label: "täglich",       monate: 0, tage: 1 },
     monatlich:     { label: "monatlich",     monate: 1 },
     halbjaehrlich: { label: "halbjährlich",  monate: 6 },
     jaehrlich:     { label: "jährlich",      monate: 12 }
+  },
+  istTaeglich(e){ return !!e && e.wiederholung === "taeglich"; },
+  /* "08:00" -> { stunde: 8, minute: 0 }; ungültiges fällt auf 08:00 zurück. */
+  zeitTeile(uhrzeit){
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(uhrzeit || ""));
+    const s = m ? Number(m[1]) : 8, min = m ? Number(m[2]) : 0;
+    return (s >= 0 && s < 24 && min >= 0 && min < 60) ? { stunde: s, minute: min } : { stunde: 8, minute: 0 };
+  },
+  fmtUhrzeit(uhrzeit){
+    const t = this.zeitTeile(uhrzeit);
+    return String(t.stunde).padStart(2, "0") + ":" + String(t.minute).padStart(2, "0");
   },
 
   STATUS: {
@@ -885,6 +911,10 @@ const Core = {
   status(e, heuteIso, fallback){
     if (!e) return null;
     if (e.archiviert) return "archiviert";
+    /* Ein Tagesrhythmus kann nicht ablaufen. Ohne diese Zeile stünde ein
+       Eintrag wie "Tabletten" ab dem nächsten Tag dauerhaft auf
+       "Abgelaufen" – die Ampel gilt nur für Fristen. */
+    if (this.istTaeglich(e)) return "aktiv";
     const tage = this.tageBis(e.datum, heuteIso || this.heute());
     if (tage < 0) return "abgelaufen";
     if (tage <= this.vorwarnTage(e, fallback)) return "bald";
@@ -897,8 +927,10 @@ const Core = {
      sehen. Erst "Erledigt" setzt den nächsten Zyklus.                     */
   naechstesDatum(e, abIso){
     const w = this.WIEDERHOLUNGEN[e.wiederholung] || this.WIEDERHOLUNGEN.keine;
-    if (!w.monate) return null;
     const ab = abIso || this.heute();
+    /* Täglich braucht kein "Erledigt": der nächste Termin ist immer morgen. */
+    if (w.tage) return this.addTage(ab, 1);
+    if (!w.monate) return null;
     let d = e.datum, schutz = 0;
     /* Vom bisherigen Termin aus weiterrollen, damit der Kalendertag erhalten
        bleibt – auch wenn mehrere Zyklen versäumt wurden. */
@@ -914,8 +946,22 @@ const Core = {
       21: "3 Wochen", 30: "1 Monat", 60: "2 Monate", 90: "3 Monate", 180: "6 Monate", 365: "1 Jahr" };
     return (map[tage] || tage + " Tage") + " vorher";
   },
+  /* Nächster Zeitpunkt eines täglichen Eintrags: heute zur Uhrzeit, wenn die
+     noch bevorsteht, sonst morgen. Nur für die Anzeige – eingeplant wird der
+     Tagesrhythmus als echte Wiederholung, nicht als Einzeltermin. */
+  tagesZeitpunkt(e, jetzt){
+    if (!this.istTaeglich(e)) return null;
+    const t = this.zeitTeile(e.uhrzeit);
+    const now = jetzt instanceof Date ? jetzt : new Date();
+    const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), t.stunde, t.minute, 0, 0);
+    if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+    return at;
+  },
   termine(e, jetzt){
     if (!e || e.archiviert || e.erinnerungenAn === false || !this.istIso(e.datum)) return [];
+    /* Tägliche Einträge haben keine Vorlaufzeiten – sie melden sich am Tag
+       selbst zur festen Uhrzeit. Sie werden getrennt eingeplant. */
+    if (this.istTaeglich(e)) return [];
     const now = jetzt instanceof Date ? jetzt : new Date();
     return (e.erinnerungen || []).filter(r => r.an).map(r => {
       const tag = this.addTage(e.datum, -r.tage).split("-").map(Number);
@@ -925,6 +971,12 @@ const Core = {
   },
   /* Text der Benachrichtigung – sachlich und knapp, wie besprochen. */
   meldung(e, tage){
+    if (this.istTaeglich(e)){
+      return {
+        titel: e.titel,
+        text: this.katLabels(e) + " · täglich um " + this.fmtUhrzeit(e.uhrzeit) + " Uhr"
+      };
+    }
     const t = this.datumstyp(e.datumstyp);
     const wann = tage === 0 ? "heute" : tage === 1 ? "morgen" : "in " + tage + " Tagen";
     return {
@@ -1018,6 +1070,9 @@ const Core = {
       datumstyp: typ,
       datum: this.istIso(e.datum) ? e.datum : this.heute(),
       wiederholung: wdh,
+      /* Nur bei täglichen Einträgen von Bedeutung; sonst mitgeführt, damit
+         ein Wechsel des Rhythmus die einmal gewählte Uhrzeit nicht verliert. */
+      uhrzeit: this.fmtUhrzeit(e.uhrzeit),
       erinnerungen: remClean,
       erinnerungenAn: e.erinnerungenAn !== false,
       referenz: String(e.referenz == null ? "" : e.referenz).trim().slice(0, 60),
@@ -1259,7 +1314,9 @@ const Daten = {
       { titel: "Visum USA (ESTA)", kategorien: ["reisen"], datumstyp: "ablauf", datum: Core.addTage(h, -30) },
       { titel: "Hausratversicherung kündbar bis", kategorien: ["vertraege"], datumstyp: "faellig",
         datum: Core.addTage(h, 25), referenz: "HR-889221" },
-      { titel: "Garantie Waschmaschine", kategorien: ["vertraege"], datumstyp: "ablauf", datum: Core.addTage(h, 380) }
+      { titel: "Garantie Waschmaschine", kategorien: ["vertraege"], datumstyp: "ablauf", datum: Core.addTage(h, 380) },
+      { titel: "Tabletten", kategorien: ["gesundheit"], datumstyp: "wiederkehrend",
+        wiederholung: "taeglich", uhrzeit: "08:00", datum: h }
     ];
     b.forEach(x => this.liste.push(Core.normalisieren(x)));
     this.speichern();
@@ -1432,12 +1489,32 @@ const Erinnerungen = {
       if (!this.erlaubt){ this.log("keine Berechtigung – nichts geplant"); return 0; }
 
       const jetzt = new Date();
-      const geplant = [];
+      const taeglich = [];   /* echte Wiederholung, plant sich selbst neu */
+      const einmalig = [];   /* je ein fester Zeitpunkt */
       Daten.alle().forEach(e => {
+        if (e.archiviert || e.erinnerungenAn === false) return;
+        if (Core.istTaeglich(e)){
+          /* Der "on"-Zeitplan des Plugins feuert jeden Tag zur genannten
+             Uhrzeit und plant sich nach jedem Auslösen selbst neu ein.
+             Der naheliegende Weg (at + repeats) wäre falsch: Das Plugin
+             errechnet den Wiederholabstand dort aus dem Abstand bis zum
+             ERSTEN Auslösen – "morgen 8 Uhr" um 17 Uhr geplant ergäbe eine
+             Wiederholung alle 15 Stunden. */
+          const t = Core.zeitTeile(e.uhrzeit);
+          const m = Core.meldung(e);
+          taeglich.push({
+            id: Core.notifId(e.id, "taeglich"),
+            title: m.titel,
+            body: m.text,
+            schedule: { on: { hour: t.stunde, minute: t.minute }, allowWhileIdle: true },
+            extra: { eintragId: e.id }
+          });
+          return;
+        }
         Core.termine(e, jetzt).forEach(t => {
           if (!t.kuenftig) return;
           const m = Core.meldung(e, t.tage);
-          geplant.push({
+          einmalig.push({
             id: Core.notifId(e.id, t.tage),
             title: m.titel,
             body: m.text,
@@ -1446,11 +1523,16 @@ const Erinnerungen = {
           });
         });
       });
-      geplant.sort((a, b) => a.schedule.at - b.schedule.at);
-      const zuviel = geplant.length - this.MAX_GEPLANT;
-      const senden = geplant.slice(0, this.MAX_GEPLANT);
+      einmalig.sort((a, b) => a.schedule.at - b.schedule.at);
+      /* Tägliche zuerst: Sie sind wenige und wiederholen sich, während von
+         den Einzelterminen notfalls die entferntesten warten können. */
+      const platz = Math.max(0, this.MAX_GEPLANT - taeglich.length);
+      const zuviel = einmalig.length - platz;
+      const senden = taeglich.concat(einmalig.slice(0, platz));
       if (senden.length) await p.schedule({ notifications: senden });
-      this.log(senden.length + " Erinnerungen geplant" + (zuviel > 0 ? " (" + zuviel + " weitere folgen später)" : ""));
+      this.log(senden.length + " Erinnerungen geplant"
+        + (taeglich.length ? " (davon " + taeglich.length + " täglich)" : "")
+        + (zuviel > 0 ? ", " + zuviel + " weitere folgen später" : ""));
       /* Beim System nachfragen, was dort wirklich liegt. Nur diese Zahl
          beweist, dass die Planung angekommen ist – unsere eigene sagt bloß,
          was wir abgeschickt haben. */
@@ -1487,9 +1569,12 @@ const Erinnerungen = {
   naechster(){
     const jetzt = new Date();
     let fruehester = null;
-    Daten.alle().forEach(e => Core.termine(e, jetzt).forEach(t => {
-      if (t.kuenftig && (!fruehester || t.at < fruehester)) fruehester = t.at;
-    }));
+    const merke = at => { if (at && (!fruehester || at < fruehester)) fruehester = at; };
+    Daten.alle().forEach(e => {
+      if (e.archiviert || e.erinnerungenAn === false) return;
+      if (Core.istTaeglich(e)){ merke(Core.tagesZeitpunkt(e, jetzt)); return; }
+      Core.termine(e, jetzt).forEach(t => { if (t.kuenftig) merke(t.at); });
+    });
     return fruehester;
   },
 
@@ -1555,7 +1640,8 @@ const Kalender = {
     return out + "\r\n " + rest;
   },
   _stamp(){ return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); },
-  RRULE: { monatlich: "FREQ=MONTHLY", halbjaehrlich: "FREQ=MONTHLY;INTERVAL=6", jaehrlich: "FREQ=YEARLY" },
+  RRULE: { taeglich: "FREQ=DAILY", monatlich: "FREQ=MONTHLY",
+           halbjaehrlich: "FREQ=MONTHLY;INTERVAL=6", jaehrlich: "FREQ=YEARLY" },
 
   ics(e){
     const kompakt = iso => iso.replace(/-/g, "");
@@ -1797,11 +1883,25 @@ document.querySelectorAll(".modal-back").forEach(m => m.addEventListener("click"
 function statusPill(st){
   return '<span class="pill s-' + st + '"><span class="dot"></span>' + Core.STATUS[st].label + "</span>";
 }
+/* "heute um 08:00 Uhr" bzw. "morgen um 08:00 Uhr" */
+function naechsteTagesMeldung(e){
+  const at = Core.tagesZeitpunkt(e);
+  if (!at) return "";
+  const heuteIso = Core.heute();
+  const atIso = Core.iso(at.getFullYear(), at.getMonth() + 1, at.getDate());
+  return (atIso === heuteIso ? "heute" : "morgen") + " um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr";
+}
 function zeileHtml(e, heute){
   const st = Core.status(e, heute, Einst.werte.vorwarnTage);
   const kats = Core.kategorienVon(e);
   const typ = Core.datumstyp(e.datumstyp);
-  const wdh = e.wiederholung !== "keine" ? " · " + Core.WIEDERHOLUNGEN[e.wiederholung].label : "";
+  const tgl = Core.istTaeglich(e);
+  const wdh = (!tgl && e.wiederholung !== "keine") ? " · " + Core.WIEDERHOLUNGEN[e.wiederholung].label : "";
+  /* Täglich hat kein Datum und keinen Countdown – dort steht die Uhrzeit. */
+  const zeile2 = tgl
+    ? "täglich um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
+    : typ.kurz + " " + Core.fmtDatum(e.datum) + wdh;
+  const rechts = e.archiviert ? "" : tgl ? "läuft" : Core.fmtRest(e.datum, heute);
   /* In der Zeile ist wenig Platz: das Symbol der ersten Kategorie, und bei
      mehreren ein kleiner Zähler statt einer Reihe von Emoji. */
   const symbol = kats[0].emoji + (kats.length > 1 ? '<i class="mehr">+' + (kats.length - 1) + "</i>" : "");
@@ -1809,9 +1909,9 @@ function zeileHtml(e, heute){
   return '<li><button class="row st-' + st + (e.archiviert ? " is-archiviert" : "") + '" data-detail="' + e.id + '">'
     + '<span class="kat" aria-hidden="true">' + symbol + "</span>"
     + '<span class="mid"><span class="tit">' + esc(e.titel) + "</span>"
-    + '<span class="sub">' + esc(Core.katLabels(e)) + " · " + typ.kurz + " " + Core.fmtDatum(e.datum) + wdh + "</span></span>"
+    + '<span class="sub">' + esc(Core.katLabels(e)) + " · " + zeile2 + "</span></span>"
     + '<span class="right">' + statusPill(st)
-    + '<span class="rest">' + (e.archiviert ? "" : Core.fmtRest(e.datum, heute)) + "</span></span>"
+    + '<span class="rest">' + rechts + "</span></span>"
     + "</button></li>";
 }
 function listeHtml(arr, heute){
@@ -1841,8 +1941,13 @@ function renderHome(){
     return;
   }
 
+  /* Tägliche Einträge sind keine Fristen: Sie laufen nicht ab, tauchen
+     deshalb weder in der Kopfkarte noch in den Kennzahlen auf, sondern
+     bekommen einen eigenen Abschnitt. */
+  const taeglich = Core.sortieren(offen.filter(e => Core.istTaeglich(e)), heute, fb);
   const gruppen = { abgelaufen: [], bald: [], aktiv: [] };
-  offen.forEach(e => gruppen[Core.status(e, heute, fb)].push(e));
+  offen.filter(e => !Core.istTaeglich(e))
+    .forEach(e => gruppen[Core.status(e, heute, fb)].push(e));
   Object.keys(gruppen).forEach(k => gruppen[k] = Core.sortieren(gruppen[k], heute, fb));
 
   /* Kopfkarte: der eine Termin, der als Nächstes zählt. */
@@ -1873,6 +1978,10 @@ function renderHome(){
       + '<svg class="ic" viewBox="0 0 24 24" style="width:26px;height:26px;color:var(--ok)"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>'
       + "<div><b>Alles im grünen Bereich</b><div class=\"muted\">Aktuell läuft nichts in den nächsten "
       + Einst.werte.vorwarnTage + " Tagen ab.</div></div></div>";
+  }
+
+  if (taeglich.length){
+    html += "<h3>Jeden Tag</h3>" + listeHtml(taeglich, heute);
   }
 
   if (gruppen.aktiv.length){
@@ -1978,6 +2087,7 @@ function renderDetail(){
   const kats = Core.kategorienVon(e), typ = Core.datumstyp(e.datumstyp);
   const wdh = Core.WIEDERHOLUNGEN[e.wiederholung];
   const aktiveRem = (e.erinnerungen || []).filter(r => r.an);
+  const tgl = Core.istTaeglich(e);
 
   let html = '<div class="detail-head"><span class="kat" aria-hidden="true">' + kats[0].emoji + "</span>"
     + "<div><h2>" + esc(e.titel) + "</h2>"
@@ -1985,11 +2095,17 @@ function renderDetail(){
     + kats.map(k => '<span class="katchip">' + k.emoji + " " + esc(k.label) + "</span>").join("")
     + "</div></div></div>"
     + '<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
-    + '<div><div class="muted">' + typ.label + '</div><div class="bigdate">' + Core.fmtDatum(e.datum)
-    + '<span class="rest">' + (e.archiviert ? "archiviert" : Core.fmtRest(e.datum, heute)) + "</span></div></div>"
+    + "<div><div class=\"muted\">" + (tgl ? "Jeden Tag um" : typ.label) + "</div>"
+    + '<div class="bigdate">' + (tgl ? Core.fmtUhrzeit(e.uhrzeit) + " Uhr" : Core.fmtDatum(e.datum))
+    + '<span class="rest">' + (e.archiviert ? "archiviert"
+        : tgl ? "nächste Erinnerung " + naechsteTagesMeldung(e) : Core.fmtRest(e.datum, heute))
+    + "</span></div></div>"
     + statusPill(st) + "</div>";
 
-  if (wdh.monate){
+  if (tgl){
+    html += '<p class="hint">Die Erinnerung wiederholt sich von selbst. Du musst nichts '
+      + "abhaken – und der Eintrag läuft nie ab.</p>";
+  } else if (wdh.monate){
     const naechst = Core.naechstesDatum(e, heute);
     html += '<p class="hint">Wiederkehrend (' + wdh.label + "). Nach „Erledigt“ ist der nächste Termin am <b>"
       + Core.fmtDatum(naechst) + "</b>.</p>";
@@ -1997,17 +2113,20 @@ function renderDetail(){
   html += "</div>";
 
   html += '<div class="card"><dl class="dl">';
-  html += "<dt>Erinnerungen</dt><dd>" + (e.erinnerungenAn === false || !aktiveRem.length
-    ? "aus" : aktiveRem.map(r => Core.erinnerungLabel(r.tage)).join(", ")) + "</dd>";
+  html += "<dt>Erinnerungen</dt><dd>" + (e.erinnerungenAn === false ? "aus"
+    : tgl ? "täglich um " + Core.fmtUhrzeit(e.uhrzeit) + " Uhr"
+    : !aktiveRem.length ? "aus" : aktiveRem.map(r => Core.erinnerungLabel(r.tage)).join(", ")) + "</dd>";
   html += "<dt>Wiederholung</dt><dd>" + wdh.label + "</dd>";
   if (e.referenz) html += "<dt>Nummer</dt><dd>" + esc(e.referenz) + "</dd>";
   if (e.notiz) html += "<dt>Notiz</dt><dd>" + esc(e.notiz).replace(/\n/g, "<br>") + "</dd>";
   if (e.erledigtAm) html += "<dt>Zuletzt erneuert</dt><dd>" + esc(new Date(e.erledigtAm).toLocaleDateString("de-DE")) + "</dd>";
   html += "</dl></div>";
 
+  /* Bei einem Tagesrhythmus gibt es nichts zu erneuern – die Wiederholung
+     läuft von selbst. Der Knopf entfällt deshalb. */
   html += '<div class="actions">'
-    + '<button class="btn" id="d-erneuern"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/></svg>'
-    + (wdh.monate ? "Erledigt" : "Erneuert") + "</button>"
+    + (tgl ? "" : '<button class="btn" id="d-erneuern"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/></svg>'
+      + (wdh.monate ? "Erledigt" : "Erneuert") + "</button>")
     + '<button class="btn secondary" id="d-bearbeiten"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 10-4-4L4 16z"/></svg>Bearbeiten</button>'
     + '<button class="btn secondary" id="d-kalender"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>In Kalender</button>'
     + '<button class="btn secondary" id="d-archiv"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v12h14V8M10 12h4"/></svg>'
@@ -2021,7 +2140,7 @@ function renderDetail(){
     toast(e.archiviert ? "Eintrag archiviert" : "Eintrag zurückgeholt");
     render();
   });
-  $("d-erneuern").addEventListener("click", () => erneuernOeffnen(e));
+  if ($("d-erneuern")) $("d-erneuern").addEventListener("click", () => erneuernOeffnen(e));
 }
 
 /* ---------- Eigene Kategorien anlegen und bearbeiten --------------------
@@ -2225,18 +2344,32 @@ function renderRemListe(){
     formRem.splice(Number(b.dataset.del), 1); renderRemListe();
   }));
 }
+/* Täglich ist der einzige Rhythmus ohne Datum – dort tritt die Uhrzeit an
+   die Stelle des Ablaufdatums, und die Erinnerungsliste entfällt. */
+function formTaeglich(){
+  return formTyp === "wiederkehrend" && $("f-wiederholung").value === "taeglich";
+}
 function formTypSetzen(v){
   formTyp = v;
   $("f-datumstyp").querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
   $("f-datum-label").textContent = Core.datumstyp(v).label;
   $("f-wdh-block").style.display = v === "wiederkehrend" ? "" : "none";
+  formAnsichtSetzen();
+}
+function formAnsichtSetzen(){
+  const tgl = formTaeglich();
+  $("f-datum-block").style.display = tgl ? "none" : "";
+  $("f-zeit-block").style.display = tgl ? "" : "none";
+  /* Vorlaufzeiten ergeben bei einem Tagesrhythmus keinen Sinn. */
+  $("f-rem-karte").style.display = tgl ? "none" : "";
   formWdhHint();
 }
 function formWdhHint(){
-  if (formTyp !== "wiederkehrend") return;
+  const hint = $("f-wdh-hint");
+  if (formTyp !== "wiederkehrend" || formTaeglich()){ hint.textContent = ""; return; }
   const d = $("f-datum").value;
   const w = Core.WIEDERHOLUNGEN[$("f-wiederholung").value];
-  $("f-wdh-hint").textContent = Core.istIso(d)
+  hint.textContent = Core.istIso(d)
     ? "Nach „Erledigt“ steht der nächste Termin automatisch auf dem " + Core.fmtDatum(Core.addMonate(d, w.monate)) + "."
     : "Nach „Erledigt“ wird der nächste Termin automatisch berechnet.";
 }
@@ -2260,6 +2393,7 @@ function formOeffnen(id){
   formKats = e ? e.kategorien.slice() : [];
   formTypSetzen(e ? e.datumstyp : "ablauf");
   $("f-datum").value = e ? e.datum : "";
+  $("f-uhrzeit").value = e ? Core.fmtUhrzeit(e.uhrzeit) : "08:00";
   $("f-wiederholung").value = e && e.wiederholung !== "keine" ? e.wiederholung : "jaehrlich";
   $("f-referenz").value = e ? e.referenz : "";
   $("f-notiz").value = e ? e.notiz : "";
@@ -2270,14 +2404,14 @@ function formOeffnen(id){
   $("f-loeschen-row").style.display = e ? "" : "none";
   $("f-titel-err").classList.remove("show");
   $("f-datum-err").classList.remove("show");
-  renderKatGrid(); renderRemListe(); renderQuickdates(); formWdhHint();
+  renderKatGrid(); renderRemListe(); renderQuickdates(); formAnsichtSetzen();
   zeige("form");
   setTimeout(() => { if (!e) $("f-titel").focus(); }, 60);
 }
 
 $("f-datumstyp").querySelectorAll("button").forEach(b =>
   b.addEventListener("click", () => formTypSetzen(b.dataset.v)));
-$("f-wiederholung").addEventListener("change", formWdhHint);
+$("f-wiederholung").addEventListener("change", formAnsichtSetzen);
 $("f-datum").addEventListener("change", formWdhHint);
 $("f-rem-an").addEventListener("change", () => {
   $("f-rem-block").style.opacity = $("f-rem-an").checked ? "1" : ".45";
@@ -2305,16 +2439,21 @@ $("f-loeschen").addEventListener("click", () => {
 });
 $("f-speichern").addEventListener("click", () => {
   const titel = $("f-titel").value.trim();
-  const datum = $("f-datum").value;
+  const tgl = formTaeglich();
+  /* Ein täglicher Eintrag hat kein Ablaufdatum. Damit das Datenmodell
+     trotzdem stimmig bleibt, steht dort schlicht der heutige Tag. */
+  const datum = tgl ? Core.heute() : $("f-datum").value;
   let ok = true;
   $("f-titel-err").classList.toggle("show", !titel); if (!titel) ok = false;
-  $("f-datum-err").classList.toggle("show", !Core.istIso(datum)); if (!Core.istIso(datum)) ok = false;
+  const datumOk = Core.istIso(datum);
+  $("f-datum-err").classList.toggle("show", !tgl && !datumOk); if (!datumOk) ok = false;
   if (!formKats.length){ toast("Bitte mindestens eine Kategorie wählen"); ok = false; }
   if (!ok) return;
   const alt = formId ? Daten.get(formId) : null;
   const e = Daten.upsert({
     id: formId || undefined,
     titel, kategorien: formKats.slice(), datumstyp: formTyp, datum,
+    uhrzeit: $("f-uhrzeit").value,
     wiederholung: formTyp === "wiederkehrend" ? $("f-wiederholung").value : "keine",
     erinnerungen: formRem, erinnerungenAn: $("f-rem-an").checked,
     referenz: $("f-referenz").value, notiz: $("f-notiz").value,

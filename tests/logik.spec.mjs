@@ -198,6 +198,77 @@ test("Normalisieren härtet fehlerhafte Daten ab", async ({ page }) => {
   expect(r.wdhC).toBe("keine");
 });
 
+test("Täglicher Rhythmus: läuft nie ab, hat eine Uhrzeit statt Vorlaufzeiten", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const C = window.N2L.Core;
+    const bau = x => C.normalisieren(Object.assign({
+      titel: "Tabletten", kategorien: ["gesundheit"], datumstyp: "wiederkehrend",
+      wiederholung: "taeglich", uhrzeit: "08:00", datum: "2026-06-01" }, x));
+    const e = bau({});
+    return {
+      erkannt: C.istTaeglich(e),
+      // Auch Wochen später steht der Eintrag nicht auf "abgelaufen"
+      statusSpaeter: C.status(e, "2027-01-01"),
+      statusHeute: C.status(e, "2026-06-01"),
+      // Keine Vorlaufzeiten – die Meldung kommt am Tag selbst
+      termine: C.termine(e, new Date(2026, 5, 1, 6, 0)).length,
+      meldung: C.meldung(e),
+      // Ein einmaliger Eintrag verhält sich unverändert
+      einmaligAbgelaufen: C.status(C.normalisieren({ titel: "X", kategorien: ["ausweise"],
+        datum: "2026-06-01" }), "2026-07-01"),
+      uhrzeitKurz: bau({ uhrzeit: "7:05" }).uhrzeit,
+      uhrzeitSpaet: bau({ uhrzeit: "22:15" }).uhrzeit,
+      uhrzeitUnsinn: bau({ uhrzeit: "99:99" }).uhrzeit,
+      uhrzeitFehlt: bau({ uhrzeit: undefined }).uhrzeit,
+      // Mehrdeutiges wird nicht geraten, sondern fällt auf die Vorgabe zurück
+      uhrzeitZweideutig: bau({ uhrzeit: "7:5" }).uhrzeit
+    };
+  });
+  expect(r.erkannt).toBe(true);
+  expect(r.statusSpaeter).toBe("aktiv");
+  expect(r.statusHeute).toBe("aktiv");
+  expect(r.termine).toBe(0);
+  expect(r.meldung.titel).toBe("Tabletten");
+  expect(r.meldung.text).toBe("Gesundheit · täglich um 08:00 Uhr");
+  expect(r.einmaligAbgelaufen).toBe("abgelaufen");
+  expect(r.uhrzeitKurz).toBe("07:05");
+  expect(r.uhrzeitSpaet).toBe("22:15");
+  expect(r.uhrzeitUnsinn).toBe("08:00");
+  expect(r.uhrzeitFehlt).toBe("08:00");
+  expect(r.uhrzeitZweideutig).toBe("08:00");
+});
+
+test("Täglich: nächster Zeitpunkt ist heute oder morgen", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const C = window.N2L.Core;
+    const e = C.normalisieren({ titel: "Tabletten", kategorien: ["gesundheit"],
+      datumstyp: "wiederkehrend", wiederholung: "taeglich", uhrzeit: "08:00",
+      datum: "2026-06-01" });
+    const fmt = d => d.getDate() + "." + (d.getMonth() + 1) + " " + d.getHours() + ":"
+      + String(d.getMinutes()).padStart(2, "0");
+    return {
+      // Vor der Uhrzeit: heute
+      vorher: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 10, 6, 30))),
+      // Nach der Uhrzeit: morgen
+      nachher: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 10, 9, 30))),
+      // Exakt auf der Uhrzeit gilt als vorbei
+      exakt: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 10, 8, 0))),
+      // Über den Monatswechsel hinweg
+      monatsende: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 30, 20, 0))),
+      // "Erledigt" braucht es nicht – der nächste Termin ist immer morgen
+      naechstes: C.naechstesDatum(e, "2026-06-10"),
+      keinTaeglich: C.tagesZeitpunkt(C.normalisieren({ titel: "X",
+        kategorien: ["ausweise"], datum: "2026-06-01" }))
+    };
+  });
+  expect(r.vorher).toBe("10.6 8:00");
+  expect(r.nachher).toBe("11.6 8:00");
+  expect(r.exakt).toBe("11.6 8:00");
+  expect(r.monatsende).toBe("1.7 8:00");
+  expect(r.naechstes).toBe("2026-06-11");
+  expect(r.keinTaeglich).toBe(null);
+});
+
 test("Kategorien: Mehrfachzuordnung, Migration und Abhärtung", async ({ page }) => {
   const r = await page.evaluate(() => {
     const C = window.N2L.Core;

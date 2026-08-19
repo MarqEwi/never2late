@@ -109,6 +109,57 @@ test("Archivierte Einträge und abgeschaltete Erinnerungen erzeugen keine Benach
   await page.waitForFunction(() => (window.__geplant || []).length === 0);
 });
 
+test("Täglicher Eintrag wird als echte Wiederholung eingeplant", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Tabletten");
+  await page.click('#f-kategorie button[data-k="gesundheit"]');
+  await page.click('#f-datumstyp button[data-v="wiederkehrend"]');
+  await page.selectOption("#f-wiederholung", "taeglich");
+  // Bei täglich tritt die Uhrzeit an die Stelle des Datums
+  await expect(page.locator("#f-datum-block")).toBeHidden();
+  await expect(page.locator("#f-zeit-block")).toBeVisible();
+  await expect(page.locator("#f-rem-karte")).toBeHidden();
+  await page.fill("#f-uhrzeit", "07:30");
+  await page.click("#f-speichern");
+  await page.waitForFunction(() => (window.__geplant || []).length > 0);
+
+  const n = await page.evaluate(() => window.__geplant);
+  // Genau eine Benachrichtigung, nicht drei Vorlaufzeiten
+  expect(n).toHaveLength(1);
+  expect(n[0].title).toBe("Tabletten");
+  expect(n[0].body).toBe("Gesundheit · täglich um 07:30 Uhr");
+
+  // Entscheidend: "on" statt "at". Mit "at" + repeats würde das Plugin den
+  // Wiederholabstand aus dem Abstand bis zum ersten Auslösen berechnen.
+  const plan = await page.evaluate(() => window.__zeitplan[0]);
+  expect(plan.on).toEqual({ hour: 7, minute: 30 });
+  expect(plan.at).toBeUndefined();
+  expect(plan.allowWhileIdle).toBe(true);
+});
+
+test("Täglicher Eintrag zeigt Uhrzeit statt Ablaufdatum", async ({ page }) => {
+  await page.evaluate(() => {
+    window.N2L.Daten.upsert({ titel: "Tabletten", kategorien: ["gesundheit"],
+      datumstyp: "wiederkehrend", wiederholung: "taeglich", uhrzeit: "08:00",
+      datum: window.N2L.Core.heute() });
+  });
+  await page.reload();
+  await page.waitForFunction(() => !!window.N2L);
+
+  // Eigener Abschnitt, nicht in den Kennzahlen der Fristen
+  await expect(page.locator("#home-inhalt")).toContainText("Jeden Tag");
+  await expect(page.locator("#home-inhalt .row .sub")).toContainText("täglich um 08:00 Uhr");
+  await expect(page.locator("#home-inhalt .row .rest")).toHaveText("läuft");
+  await expect(page.locator("#home-inhalt .stat.s-abgelaufen b")).toHaveText("0");
+
+  await page.click("#home-inhalt .row");
+  await expect(page.locator("#detail-inhalt")).toContainText("Jeden Tag um");
+  await expect(page.locator("#detail-inhalt")).toContainText("08:00 Uhr");
+  // Kein "Erledigt" – die Wiederholung läuft von selbst
+  await expect(page.locator("#d-erneuern")).toHaveCount(0);
+  await expect(page.locator("#detail-inhalt")).toContainText("Du musst nichts abhaken");
+});
+
 test("Testbenachrichtigung wird geplant und überlebt eine Neuplanung", async ({ page }) => {
   await eintragAnlegen(page, { titel: "Irgendwas", kategorie: "karten", datum: inTagen(200) });
   await page.waitForFunction(() => (window.__geplant || []).length === 3);
