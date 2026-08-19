@@ -186,9 +186,9 @@ def mittig(d, text, font, breite, y, fuellung, **kw):
 def baue_screenshots(k):
     s = k.get('screenshots', {})
     W, H = s.get('breite', 1080), s.get('hoehe', 1920)
-    tel_b = s.get('geraet_breite', round(W * 0.715))
-    rahmen = s.get('rahmen', max(8, round(tel_b / 51)))
     oben = s.get('geraet_oben', round(H * 0.253))
+    # Untere Zielkante des Geräts: fast am Rand, ohne ihn zu berühren.
+    unten = s.get('geraet_unten', round(H * 0.9557))
     f_t = schrift('fett', s.get('titel_groesse', round(W / 15.4)), k)
     f_u = schrift('normal', s.get('unter_groesse', round(W / 30)), k)
     ton = farbe(s.get('schleier_ton', '#0A0E14'))
@@ -196,6 +196,22 @@ def baue_screenshots(k):
     os.makedirs(ziel, exist_ok=True)
 
     for i, seite in enumerate(k.get('seiten', []), 1):
+        # Die Gerätebreite folgt dem Seitenverhältnis der Aufnahme: Das Gerät
+        # spannt sich immer von `geraet_oben` bis `geraet_unten`, die Breite
+        # ergibt sich daraus. Eine 9:19,5-Aufnahme (modernes Telefon) wird so
+        # automatisch schlank; eine 9:16-Aufnahme sähe breit wie ein Tablet
+        # aus – genau so kam es als Rückmeldung zurück. `geraet_breite`
+        # übersteuert die Rechnung bei Bedarf.
+        q = Image.open(seite['aufnahme'])
+        a = q.height / q.width
+        tel_b = s.get('geraet_breite')
+        if not tel_b:
+            r = s.get('rahmen', 15)
+            for _ in range(2):
+                tel_b = round((unten - oben - 2 * r) / a + 2 * r)
+                r = s.get('rahmen', max(8, round(tel_b / 51)))
+        rahmen = s.get('rahmen', max(8, round(tel_b / 51)))
+
         bild = deckend(seite['hintergrund'], W, H)
         bild = Image.alpha_composite(bild, verlauf(
             W, H, ton, s.get('kopf_deckung', 200), s.get('kopf_anteil', 0.30),
@@ -293,7 +309,13 @@ def baue_feature(k):
         else:
             TL = tuple(g.get('oben_links', [618, 60]))
             TR = tuple(g.get('oben_rechts', [945, 18]))
-            ll, lr = g.get('kante_links', 564), g.get('kante_rechts', 535)
+            # Die Seitenlängen folgen dem Seitenverhältnis der Aufnahme,
+            # sonst wird das Telefon gestaucht oder gestreckt. Wer sie doch
+            # von Hand setzt, übersteuert damit bewusst die Proportionen.
+            kante = ((TR[0] - TL[0]) ** 2 + (TR[1] - TL[1]) ** 2) ** 0.5 \
+                * tel.height / tel.width
+            ll = g.get('kante_links', kante)
+            lr = g.get('kante_rechts', kante * g.get('verjuengung', 0.95))
 
         ex, ey = TR[0] - TL[0], TR[1] - TL[1]
         lg = (ex * ex + ey * ey) ** 0.5
