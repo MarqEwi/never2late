@@ -460,12 +460,16 @@ test("Uhrzeit-Schnellwahl: Chips setzen die Zeit und zeigen die Auswahl", async 
   await expect(page.locator('#f-zeit-quick button[data-z="08:00"]')).toHaveClass(/active/);
 
   await page.click('#f-zeit-quick button[data-z="18:00"]');
-  await expect(page.locator("#f-uhrzeit")).toHaveValue("18:00");
+  // Die Anzeige ist eine eigene 24-Stunden-Auswahl (kein input[type=time],
+  // das je nach Gerätesprache AM/PM zeigen würde).
+  await expect(page.locator("#f-uhr-h")).toHaveValue("18");
+  await expect(page.locator("#f-uhr-m")).toHaveValue("00");
   await expect(page.locator('#f-zeit-quick button[data-z="18:00"]')).toHaveClass(/active/);
   await expect(page.locator('#f-zeit-quick button[data-z="08:00"]')).not.toHaveClass(/active/);
 
   // Handeingabe abseits der Chips hebt jede Markierung auf.
-  await page.fill("#f-uhrzeit", "09:15");
+  await page.selectOption("#f-uhr-h", "09");
+  await page.selectOption("#f-uhr-m", "15");
   await expect(page.locator("#f-zeit-quick button.active")).toHaveCount(0);
 });
 
