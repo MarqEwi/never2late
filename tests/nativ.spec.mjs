@@ -147,7 +147,7 @@ test("Täglicher Eintrag zeigt Uhrzeit statt Ablaufdatum", async ({ page }) => {
   await page.waitForFunction(() => !!window.N2L);
 
   // Eigener Abschnitt, nicht in den Kennzahlen der Fristen
-  await expect(page.locator("#home-inhalt")).toContainText("Jeden Tag");
+  await expect(page.locator("#home-inhalt")).toContainText("Regelmäßig");
   await expect(page.locator("#home-inhalt .row .sub")).toContainText("täglich um 08:00 Uhr");
   await expect(page.locator("#home-inhalt .row .rest")).toHaveText("läuft");
   await expect(page.locator("#home-inhalt .stat.s-abgelaufen b")).toHaveText("0");
@@ -229,4 +229,35 @@ test("Die App nutzt keine Plugin-Registrierung ohne Bundler", async ({ page }) =
   const quelle = await page.evaluate(async () => (await (await fetch("index.html")).text()));
   expect(quelle).not.toMatch(/registerPlugin\s*\(/);
   expect(quelle).toContain("window.Capacitor.Plugins");
+});
+
+test("Wochentags-Eintrag: je gewählter Tag ein eigener Wochenzeitplan", async ({ page }) => {
+  await page.click("#btn-neu");
+  await page.fill("#f-titel", "Wochenend-Tabletten");
+  await page.click('#f-kategorie button[data-k="gesundheit"]');
+  await page.click('#f-datumstyp button[data-v="wiederkehrend"]');
+  await page.selectOption("#f-wiederholung", "eigen");
+  await page.click('#f-eigen-art button[data-v="wochentage"]');
+  // Sa und So sind vorausgewählt; die Uhrzeit tritt an die Stelle des Datums
+  await expect(page.locator("#f-datum-block")).toBeHidden();
+  await expect(page.locator("#f-zeit-block")).toBeVisible();
+  await expect(page.locator("#f-rem-karte")).toBeHidden();
+  await page.fill("#f-uhrzeit", "09:30");
+  await page.click("#f-speichern");
+  await page.waitForFunction(() => (window.__geplant || []).length === 2);
+
+  const n = await page.evaluate(() => window.__geplant);
+  expect(n.map(x => x.title)).toEqual(["Wochenend-Tabletten", "Wochenend-Tabletten"]);
+  expect(n[0].body).toBe("Gesundheit · jeden Sa und So um 09:30 Uhr");
+
+  // Je Wochentag ein "on"-Zeitplan; das Plugin zählt 1 = Sonntag … 7 = Samstag,
+  // Samstag ist also 7 und Sonntag 1.
+  const plan = await page.evaluate(() => window.__zeitplan);
+  expect(plan.map(p => p.on.weekday).sort()).toEqual([1, 7]);
+  plan.forEach(p => {
+    expect(p.on.hour).toBe(9);
+    expect(p.on.minute).toBe(30);
+    expect(p.at).toBeUndefined();
+    expect(p.allowWhileIdle).toBe(true);
+  });
 });

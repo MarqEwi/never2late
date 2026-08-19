@@ -446,3 +446,88 @@ test("Kalenderdatei enthält Termin, Wiederholung und Alarme", async ({ page }) 
   expect(ics).toContain("Zeile1\\nZeile2");
   expect(ics.trim().endsWith("END:VCALENDAR")).toBe(true);
 });
+
+test("Benutzerdefiniert im Abstand: rollt im eigenen Raster weiter", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const C = window.N2L.Core;
+    const bau = wdh => C.normalisieren({ titel: "Blumen", kategorien: ["sonstiges"],
+      datumstyp: "wiederkehrend", wiederholung: "intervall", wdh, datum: "2026-06-01" });
+    const wochen = bau({ n: 2, einheit: "wochen" });
+    const tage = bau({ n: 3, einheit: "tage" });
+    const monate = bau({ n: 2, einheit: "monate" });
+    return {
+      normal: wochen.wiederholung, daten: wochen.wdh,
+      label: C.wdhLabel(wochen), labelTage: C.wdhLabel(tage),
+      labelEinzahl: C.wdhLabel(bau({ n: 1, einheit: "wochen" })),
+      // Erst der übernächste Zyklus liegt in der Zukunft – das Raster bleibt
+      naechstesWochen: C.naechstesDatum(wochen, "2026-06-20"),
+      naechstesTage: C.naechstesDatum(tage, "2026-06-05"),
+      naechstesMonate: C.naechstesDatum(monate, "2026-06-01"),
+      // Verhält sich wie eine Frist: kann ablaufen, "Erledigt" rollt weiter
+      status: C.status(wochen, "2026-07-01"),
+      rollend: C.istRollend(wochen), zeitplan: C.istZeitplan(wochen),
+      rrule: window.N2L.Kalender.rrule(wochen),
+      // Unvollständiges fällt nicht auf einen halben Rhythmus zurück
+      kaputtN: C.normalisieren({ titel: "X", kategorien: ["sonstiges"], datumstyp: "wiederkehrend",
+        wiederholung: "intervall", wdh: { n: "abc", einheit: "wochen" }, datum: "2026-06-01" }).wiederholung,
+      kaputtEinheit: C.normalisieren({ titel: "X", kategorien: ["sonstiges"], datumstyp: "wiederkehrend",
+        wiederholung: "intervall", wdh: { n: 2, einheit: "quatsch" }, datum: "2026-06-01" }).wiederholung
+    };
+  });
+  expect(r.normal).toBe("intervall");
+  expect(r.daten).toEqual({ n: 2, einheit: "wochen" });
+  expect(r.label).toBe("alle 2 Wochen");
+  expect(r.labelTage).toBe("alle 3 Tage");
+  expect(r.labelEinzahl).toBe("jede Woche");
+  expect(r.naechstesWochen).toBe("2026-06-29");   // 01.06. + 2 + 2 Wochen
+  expect(r.naechstesTage).toBe("2026-06-07");     // 01.06. + 3 + 3 Tage
+  expect(r.naechstesMonate).toBe("2026-08-01");
+  expect(r.status).toBe("abgelaufen");
+  expect(r.rollend).toBe(true);
+  expect(r.zeitplan).toBe(false);
+  expect(r.rrule).toBe("FREQ=WEEKLY;INTERVAL=2");
+  expect(r.kaputtN).toBe("jaehrlich");
+  expect(r.kaputtEinheit).toBe("jaehrlich");
+});
+
+test("Benutzerdefiniert an Wochentagen: wie täglich, nur an festen Tagen", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const C = window.N2L.Core;
+    const e = C.normalisieren({ titel: "Wochenend-Tabletten", kategorien: ["gesundheit"],
+      datumstyp: "wiederkehrend", wiederholung: "wochentage",
+      wdh: { tage: [7, 6, 6, 9, 0] }, uhrzeit: "09:30", datum: "2026-06-01" });
+    const fmt = d => d.getDate() + "." + (d.getMonth() + 1) + " " + d.getHours() + ":"
+      + String(d.getMinutes()).padStart(2, "0");
+    return {
+      // Duplikate und Unsinn raus, sortiert gespeichert
+      tage: e.wdh.tage,
+      label: C.wdhLabel(e),
+      zeitplan: C.istZeitplan(e), taeglich: C.istTaeglich(e),
+      status: C.status(e, "2027-01-01"),
+      termine: C.termine(e, new Date(2026, 5, 1, 6, 0)).length,
+      meldung: C.meldung(e).text,
+      rrule: window.N2L.Kalender.rrule(e),
+      // Mi, 10.06.2026: nächster erlaubter Tag ist Samstag, der 13.06.
+      naechster: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 10, 12, 0))),
+      // Sa vor der Uhrzeit: noch heute
+      samstagFrueh: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 13, 8, 0))),
+      // So nach der Uhrzeit: erst nächsten Samstag
+      sonntagSpaet: fmt(C.tagesZeitpunkt(e, new Date(2026, 5, 14, 12, 0))),
+      // Ohne einen einzigen gültigen Tag fällt der Rhythmus auf jährlich zurück
+      leer: C.normalisieren({ titel: "X", kategorien: ["sonstiges"], datumstyp: "wiederkehrend",
+        wiederholung: "wochentage", wdh: { tage: [0, 8] }, datum: "2026-06-01" }).wiederholung
+    };
+  });
+  expect(r.tage).toEqual([6, 7]);
+  expect(r.label).toBe("jeden Sa und So");
+  expect(r.zeitplan).toBe(true);
+  expect(r.taeglich).toBe(false);
+  expect(r.status).toBe("aktiv");
+  expect(r.termine).toBe(0);
+  expect(r.meldung).toBe("Gesundheit · jeden Sa und So um 09:30 Uhr");
+  expect(r.rrule).toBe("FREQ=WEEKLY;BYDAY=SA,SU");
+  expect(r.naechster).toBe("13.6 9:30");
+  expect(r.samstagFrueh).toBe("13.6 9:30");
+  expect(r.sonntagSpaet).toBe("20.6 9:30");
+  expect(r.leer).toBe("jaehrlich");
+});
