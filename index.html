@@ -157,6 +157,13 @@
   .pill.s-bald{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-rand)}
   .pill.s-abgelaufen{background:var(--bad-soft);color:var(--bad);border-color:var(--bad-rand)}
   .pill.s-archiviert{background:var(--arch-soft);color:var(--arch);border-color:var(--arch-rand)}
+  .pill.s-beispiel{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-rand)}
+  /* Hinweiskarte für den Beispieleintrag */
+  .beispiel-hinweis{display:flex;gap:12px;align-items:flex-start;background:var(--accent-soft);
+    border:1px solid var(--accent-rand);border-radius:var(--radius-s);padding:13px 15px;margin:12px 0}
+  .beispiel-hinweis .ic{color:var(--accent);width:20px;height:20px;margin-top:1px}
+  .beispiel-hinweis b{display:block;font-size:.92rem;font-weight:650;letter-spacing:-.011em}
+  .beispiel-hinweis span{font-size:.845rem;color:var(--text2);line-height:1.5}
   .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
   /* ---------- Kopfkarte des Dashboards ----------
      Tiefe, dunkle Fläche statt greller Akzentfarbe – das trägt die Marke,
@@ -1082,6 +1089,11 @@ const Core = {
       /* Für eine spätere Historienansicht bereits mitgeführt, in V1 nur intern. */
       historie: Array.isArray(e.historie) ? e.historie.slice(-20) : [],
       kalenderExportAm: typeof e.kalenderExportAm === "string" ? e.kalenderExportAm : null,
+      /* Kennzeichnet den beim ersten Start angelegten Beispieleintrag.
+         Wird beim ersten Bearbeiten von selbst zurückgesetzt, weil das
+         Formular dieses Feld nicht mitschickt – ab dann ist es ein
+         gewöhnlicher Eintrag. */
+      beispiel: e.beispiel === true,
       erstelltAm: typeof e.erstelltAm === "string" ? e.erstelltAm : jetzt,
       geaendertAm: jetzt
     };
@@ -1268,6 +1280,34 @@ const Daten = {
     return e;
   },
   alleLoeschen(){ this.liste = []; this.speichern(); },
+
+  /* ---- Beispieleintrag für den allerersten Start ----------------------
+     Ein leerer Bildschirm erklärt nichts. Statt dessen steht beim ersten
+     Öffnen ein fertiger Eintrag da, an dem sofort sichtbar ist, wie die App
+     funktioniert. Das Datum wird relativ zu heute erzeugt, damit der Eintrag
+     in der Vorwarnzeit liegt und die App zeigt, wofür sie da ist.
+
+     Wichtig: Er ist ausdrücklich als Beispiel gekennzeichnet. Ein Datum, das
+     die App selbst erfunden hat, darf niemand für eine eigene Angabe
+     halten – sonst verlässt man sich auf etwas Ausgedachtes. */
+  beispielAnlegen(){
+    if (this.liste.length) return null;
+    const e = Core.normalisieren({
+      titel: "Personalausweis",
+      kategorien: ["ausweise"],
+      datumstyp: "ablauf",
+      datum: Core.addTage(Core.heute(), 48),
+      /* Notiz bewusst leer: Der Hinweis steht auf der Startseite und in der
+         Detailansicht. Stünde er hier, bliebe er nach dem Bearbeiten im
+         Notizfeld stehen – der Eintrag wäre dann kein Beispiel mehr, würde
+         sich aber weiter so nennen. */
+      beispiel: true
+    });
+    this.liste.push(e);
+    this.speichern();
+    return e;
+  },
+  hatBeispiel(){ return this.liste.some(e => e.beispiel && !e.archiviert); },
 
   /* ---- Sicherung (Datei) ---- */
   exportObjekt(){
@@ -1813,6 +1853,21 @@ const Billing = {
    ========================================================================= */
 function esc(s){ const d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
 
+/* Setzt den Fokus nach dem Öffnen einer Ansicht – aber nur, wenn bis dahin
+   niemand anderes ihn übernommen hat. Die kurze Verzögerung ist nötig, weil
+   ein gerade eingeblendetes Feld sonst nicht zuverlässig annimmt; ohne die
+   Prüfung würde sie aber eine bereits begonnene Eingabe unterbrechen und
+   deren Inhalt überschreiben. */
+function fokusWennFrei(id, ms){
+  setTimeout(() => {
+    const a = document.activeElement;
+    if (!a || a === document.body || a === document.documentElement){
+      const el = $(id);
+      if (el) el.focus();
+    }
+  }, ms || 60);
+}
+
 let toastTimer = null;
 function toast(msg, ms){
   const el = $("toast");
@@ -1910,7 +1965,8 @@ function zeileHtml(e, heute){
     + '<span class="kat" aria-hidden="true">' + symbol + "</span>"
     + '<span class="mid"><span class="tit">' + esc(e.titel) + "</span>"
     + '<span class="sub">' + esc(Core.katLabels(e)) + " · " + zeile2 + "</span></span>"
-    + '<span class="right">' + statusPill(st)
+    + '<span class="right">'
+    + (e.beispiel ? '<span class="pill s-beispiel">Beispiel</span>' : statusPill(st))
     + '<span class="rest">' + rechts + "</span></span>"
     + "</button></li>";
 }
@@ -1960,6 +2016,16 @@ function renderHome(){
       + '<p class="big">' + esc(naechster.titel) + "</p>"
       + '<p class="meta">' + Core.datumstyp(naechster.datumstyp).kurz + " " + Core.fmtDatum(naechster.datum)
       + " · " + Core.fmtRest(naechster.datum, heute) + "</p></div>";
+  }
+
+  /* Solange der Beispieleintrag da ist, klar sagen, dass er von uns stammt. */
+  if (Daten.hatBeispiel()){
+    html += '<div class="beispiel-hinweis">'
+      + '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>'
+      + "<div><b>Das ist ein Beispiel von uns</b>"
+      + "<span>Der Personalausweis oben ist nur zum Ausprobieren, das Datum ist erfunden. "
+      + "Tipp ihn an, um dein eigenes Datum einzutragen – oder lösch ihn und leg deinen "
+      + "ersten echten Eintrag an.</span></div></div>";
   }
 
   html += '<div class="stats">'
@@ -2102,6 +2168,11 @@ function renderDetail(){
     + "</span></div></div>"
     + statusPill(st) + "</div>";
 
+  if (e.beispiel){
+    html += '<p class="hint" style="color:var(--accent)"><b>Beispieleintrag – das Datum ist '
+      + "erfunden.</b> Über „Bearbeiten“ machst du deinen eigenen daraus; die "
+      + "Kennzeichnung verschwindet dann von selbst.</p>";
+  }
   if (tgl){
     html += '<p class="hint">Die Erinnerung wiederholt sich von selbst. Du musst nichts '
       + "abhaken – und der Eintrag läuft nie ab.</p>";
@@ -2187,15 +2258,21 @@ const EmojiPruefung = {
 let katBearbeitet = null;      /* null = neue Kategorie */
 let katFertig = null;          /* Rückruf nach dem Speichern */
 
-function katEmojiSetzen(v){
+/* Vorschau schon beim Tippen – ohne ins Feld zu schreiben, damit die
+   Eingabe nicht mitten im Zeichen beschnitten wird. */
+function katEmojiVorschau(v){
   const e = Kategorien.emojiPruefen(v);
-  $("kat-emoji").value = e;
   $("kat-emoji-gross").textContent = e;
   $("kat-emojis").querySelectorAll("button").forEach(b =>
     b.classList.toggle("active", b.dataset.e === e));
   /* Eingefügtes Zeichen, das dieses Gerät nicht kennt: freundlich hinweisen,
      statt es kommentarlos als Kästchen anzuzeigen. */
   $("kat-emoji-warn").style.display = EmojiPruefung.darstellbar(e) ? "none" : "";
+  return e;
+}
+/* Feld und Vorschau angleichen – erst wenn die Eingabe abgeschlossen ist. */
+function katEmojiSetzen(v){
+  $("kat-emoji").value = katEmojiVorschau(v);
 }
 function katDialog(id, fertig){
   katBearbeitet = id ? Core.eigene.find(k => k.id === id) || null : null;
@@ -2209,8 +2286,9 @@ function katDialog(id, fertig){
     b.addEventListener("click", () => katEmojiSetzen(b.dataset.e)));
   katEmojiSetzen(katBearbeitet ? katBearbeitet.emoji : "📌");
   openModal("modal-kategorie");
-  setTimeout(() => $("kat-name").focus(), 60);
+  fokusWennFrei("kat-name");
 }
+$("kat-emoji").addEventListener("input", e => katEmojiVorschau(e.target.value));
 $("kat-emoji").addEventListener("change", e => katEmojiSetzen(e.target.value));
 $("kat-emoji").addEventListener("blur", e => katEmojiSetzen(e.target.value));
 $("kat-ok").addEventListener("click", () => {
@@ -2406,7 +2484,7 @@ function formOeffnen(id){
   $("f-datum-err").classList.remove("show");
   renderKatGrid(); renderRemListe(); renderQuickdates(); formAnsichtSetzen();
   zeige("form");
-  setTimeout(() => { if (!e) $("f-titel").focus(); }, 60);
+  if (!e) fokusWennFrei("f-titel");
 }
 
 $("f-datumstyp").querySelectorAll("button").forEach(b =>
@@ -2687,6 +2765,11 @@ Einst.laden();
    Normalisierung der Einträge deren IDs als unbekannt verwerfen. */
 Kategorien.laden();
 Daten.laden();
+/* Allererster Start: einen Beispieleintrag anlegen, statt mit einer leeren
+   Liste zu beginnen. Der Onboarding-Schlüssel ist zugleich die Marke für
+   „schon einmal geöffnet" – wer später alles löscht, bekommt also die
+   normale leere Ansicht und kein neues Beispiel. */
+if (!load(OB_KEY, false) && !Daten.alle().length) Daten.beispielAnlegen();
 applyTheme();
 Edition.apply();
 render();

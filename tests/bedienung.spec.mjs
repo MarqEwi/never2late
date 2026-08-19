@@ -257,6 +257,26 @@ test("Ein eingefügtes Emoji wird übernommen, auch eine Flagge", async ({ page 
   await expect(page.locator("#s-kategorien")).toContainText("Urlaub Italien");
 });
 
+test("Eine Eingabe direkt nach dem Öffnen wird nicht überschrieben", async ({ page }) => {
+  // Der Dialog setzt den Fokus verzögert auf das Namensfeld. Wer schneller
+  // tippt, darf davon nichts merken – sonst wird die Eingabe verworfen.
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  await page.fill("#kat-emoji", "🏠");          // sofort, ohne auf den Fokus zu warten
+  await page.waitForTimeout(200);                // Fokus-Zeitfenster verstreichen lassen
+
+  await expect(page.locator("#kat-emoji")).toHaveValue("🏠");
+  await expect(page.locator("#kat-emoji-gross")).toHaveText("🏠");
+});
+
+test("Die Symbol-Vorschau folgt schon beim Tippen", async ({ page }) => {
+  await page.click("#btn-settings");
+  await page.click("#s-kat-neu");
+  // Kein Verlassen des Feldes – die Vorschau muss trotzdem stimmen
+  await page.fill("#kat-emoji", "🎓");
+  await expect(page.locator("#kat-emoji-gross")).toHaveText("🎓");
+});
+
 test("Ein Symbol, das das Gerät nicht kennt, wird angemerkt", async ({ page }) => {
   await page.click("#btn-settings");
   await page.click("#s-kat-neu");
