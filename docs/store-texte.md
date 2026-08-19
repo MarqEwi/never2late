@@ -85,15 +85,22 @@ Hell und dunkel, ohne Registrierung, sofort nutzbar. Alle Angaben ohne Gewähr: 
 |---|---|
 | App-Icon 512 × 512 | `icons/icon-512.png` |
 | Feature-Grafik 1024 × 500 | `docs/store-grafiken/feature-grafik-1024x500.png` |
-| Screenshots 1080 × 1920 (7 Stück) | `docs/store-grafiken/screenshot-1…7-1080x1920.png` |
+| Screenshots 1080 × 1920 (6 Stück) | `docs/store-grafiken/screenshot-1…6-1080x1920.png` |
 
-Neu erzeugen lassen sie sich mit:
+Gebaut werden sie nach dem MERCwerk-Store-Stil (Skill `mercwerk-store-grafiken`):
+Fotohintergründe und Aufnahme-Anleitung liegen in `docs/store-grafiken/quelle/`
+(`konfig.json` steuert alles). Neu erzeugen:
 
 ```
-python3 -m http.server 8931 &
-node scripts/screenshots.mjs
-node scripts/store-grafiken.mjs
+python3 -m http.server 8931 &                                        # im Repo-Stamm
+LANG=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 node scripts/aufnehmen.mjs docs/store-grafiken/quelle/konfig.json
+python3 scripts/storegrafik.py docs/store-grafiken/quelle/konfig.json
 ```
+
+Nur Text oder Farben geändert? Dann reicht der letzte Befehl – die
+Fotohintergründe und Rohaufnahmen liegen schon daneben. Alle sichtbaren
+Beispieldaten sind erfunden (`L01X00T47`, `M-XY 1234`); echte Personendaten
+haben in Store-Bildern nichts verloren.
 
 ## Data Safety – die Antworten in Kurzform
 

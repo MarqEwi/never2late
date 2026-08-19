@@ -1,0 +1,136 @@
+{
+  "_hinweis": "Store-Grafiken für Never2Late im MERCwerk-Stil (Skill mercwerk-store-grafiken). Bauen: python3 ../../../scripts/storegrafik.py konfig.json – vorher die Rohaufnahmen mit node ../../../scripts/aufnehmen.mjs konfig.json erneuern (Server: python3 -m http.server 8931 im Repo-Stamm). Alle Beispieldaten sind erfunden; es stehen keine echten Personendaten im Bild.",
+  "ausgabe": "..",
+  "aufnahmen": {
+    "url": "http://127.0.0.1:8931/index.html",
+    "anlauf": 1200,
+    "vorbereiten": "localStorage.setItem('n2l_onboarding_done','true');",
+    "schritte": [
+      {
+        "js": "window.N2L.Daten.beispieleLaden(); render();",
+        "warten": 900,
+        "datei": "roh1.png"
+      },
+      {
+        "klicken": "nav.tabs button[data-tab='liste']",
+        "warten": 600,
+        "datei": "roh2.png"
+      },
+      {
+        "js": "formOeffnen(null)",
+        "fuellen": { "#f-titel": "Reisepass", "#f-datum": "2027-03-15" },
+        "klicken": "#f-kategorie button[data-k='ausweise']",
+        "warten": 400
+      },
+      {
+        "klicken": "#f-kategorie button[data-k='reisen']",
+        "warten": 500,
+        "datei": "roh3.png"
+      },
+      {
+        "js": "zurueck(); render(); katDialog(null)",
+        "fuellen": { "#kat-name": "Haustier" },
+        "klicken": "#kat-emojis button[data-e='🐾']",
+        "warten": 600,
+        "datei": "roh4.png"
+      },
+      {
+        "js": "closeModal('modal-kategorie'); detailOeffnen(window.N2L.Daten.liste.find(e => e.titel === 'Personalausweis').id)",
+        "warten": 600,
+        "datei": "roh5.png"
+      },
+      {
+        "js": "window.N2L.Einst.set('theme','dark'); applyTheme(); zeige('home'); render(); window.scrollTo(0,0)",
+        "warten": 700,
+        "datei": "roh6.png"
+      },
+      {
+        "breite": 360,
+        "hoehe": 640,
+        "js": "window.N2L.Einst.set('theme','light'); applyTheme(); zeige('home'); render(); window.scrollTo(0,0)",
+        "warten": 700,
+        "datei": "roh-banner.png"
+      }
+    ]
+  },
+  "feature": {
+    "hintergrund": "fb.jpg",
+    "aufnahme": "roh-banner.png",
+    "symbol": "../../../icons/icon-512.png",
+    "datei": "feature-grafik-1024x500.png",
+    "wortmarke": [
+      [
+        ["Never", "#0B1F21"],
+        ["2", "#D99A18", "#8A6410"],
+        ["Late", "#0D6E66"]
+      ]
+    ],
+    "untertitel": "Ablaufdaten und Fristen im Blick",
+    "unter_farbe": "#3E5A57",
+    "pillen": ["Ohne Konto", "Ohne Werbung", "Alles lokal"],
+    "pillen_schrift": "#173B38",
+    "fusszeile": "Alle Daten bleiben auf deinem Gerät",
+    "fuss_farbe": "#5F7773",
+    "aufhell_ton": "#F7FCFA",
+    "geraet": {
+      "vollstaendig": false,
+      "breite": 660,
+      "rahmen": 26,
+      "oben_links": [645, 52],
+      "oben_rechts": [945, 14],
+      "kante_links": 519,
+      "kante_rechts": 493,
+      "_hinweis": "läuft unten bewusst aus dem Bild – erzeugt Tiefe"
+    }
+  },
+  "screenshots": {
+    "schleier_ton": "#0B1F21",
+    "unter_farbe": "#DFEDEA",
+    "kopf_deckung": 240,
+    "kopf_anteil": 0.34
+  },
+  "seiten": [
+    {
+      "aufnahme": "roh1.png",
+      "hintergrund": "hg1.jpg",
+      "titel": "Sieh sofort, was als Nächstes zählt",
+      "unter": "Abgelaufen, bald fällig, alles Weitere – klar sortiert",
+      "datei": "screenshot-1-1080x1920.png"
+    },
+    {
+      "aufnahme": "roh2.png",
+      "hintergrund": "hg2.jpg",
+      "titel": "Alle Fristen an einem Ort",
+      "unter": "Suche, Filter und Status – nach Dringlichkeit geordnet",
+      "datei": "screenshot-2-1080x1920.png"
+    },
+    {
+      "aufnahme": "roh3.png",
+      "hintergrund": "hg4.jpg",
+      "titel": "In Sekunden eingetragen",
+      "unter": "Titel, Kategorie, Datum – Erinnerungen kommen von selbst",
+      "datei": "screenshot-3-1080x1920.png"
+    },
+    {
+      "aufnahme": "roh4.png",
+      "hintergrund": "hg3.jpg",
+      "titel": "Eigene Kategorien mit Symbol",
+      "unter": "Haustier, Wohnung, Studium – was immer du brauchst",
+      "datei": "screenshot-4-1080x1920.png"
+    },
+    {
+      "aufnahme": "roh5.png",
+      "hintergrund": "hg5.jpg",
+      "titel": "Rechtzeitig erinnert werden",
+      "unter": "Drei Monate, eine Woche, ein Tag vorher – anpassbar",
+      "datei": "screenshot-5-1080x1920.png"
+    },
+    {
+      "aufnahme": "roh6.png",
+      "hintergrund": "hg1.jpg",
+      "titel": "Hell oder dunkel – wie du magst",
+      "unter": "Ohne Konto, ohne Werbung, alles bleibt lokal",
+      "datei": "screenshot-6-1080x1920.png"
+    }
+  ]
+}
