@@ -119,7 +119,8 @@ test("Täglicher Eintrag wird als echte Wiederholung eingeplant", async ({ page 
   await expect(page.locator("#f-datum-block")).toBeHidden();
   await expect(page.locator("#f-zeit-block")).toBeVisible();
   await expect(page.locator("#f-rem-karte")).toBeHidden();
-  await page.fill("#f-uhrzeit", "07:30");
+  await page.selectOption("#f-uhr-h", "07");
+  await page.selectOption("#f-uhr-m", "30");
   await page.click("#f-speichern");
   await page.waitForFunction(() => (window.__geplant || []).length > 0);
 
@@ -242,7 +243,8 @@ test("Wochentags-Eintrag: je gewählter Tag ein eigener Wochenzeitplan", async (
   await expect(page.locator("#f-datum-block")).toBeHidden();
   await expect(page.locator("#f-zeit-block")).toBeVisible();
   await expect(page.locator("#f-rem-karte")).toBeHidden();
-  await page.fill("#f-uhrzeit", "09:30");
+  await page.selectOption("#f-uhr-h", "09");
+  await page.selectOption("#f-uhr-m", "30");
   await page.click("#f-speichern");
   await page.waitForFunction(() => (window.__geplant || []).length === 2);
 

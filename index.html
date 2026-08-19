@@ -303,19 +303,22 @@
   /* input[type=time] fällt bewusst aus der globalen Eingabefeld-Regel heraus:
      Statt eines schmalen Formularfelds bekommt die Uhrzeit eine große,
      zentrierte Anzeige – sie ist bei täglichen Einträgen die Hauptangabe. */
-  .uhrfeld{display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;
+  .uhrfeld{display:flex;align-items:center;justify-content:center;gap:6px;
     background:var(--bg2);border:1px solid var(--line-stark);border-radius:var(--radius-s);
     padding:16px 14px;transition:border-color .14s, box-shadow .14s}
   .uhrfeld:hover{border-color:var(--accent-rand)}
   .uhrfeld:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .uhrfeld .ic{width:27px;height:27px;color:var(--accent);stroke-width:1.6;flex:none}
-  .uhrfeld input[type=time]{background:none;border:none;padding:0;width:auto;font:inherit;
-    font-size:2.05rem;font-weight:700;line-height:1;color:var(--text);
-    font-variant-numeric:tabular-nums;letter-spacing:.01em}
-  .uhrfeld input[type=time]:focus{outline:none}
-  .uhrfeld input[type=time]::-webkit-calendar-picker-indicator{display:none}
+  .uhrfeld .ic{width:27px;height:27px;color:var(--accent);stroke-width:1.6;flex:none;
+    margin-right:8px}
+  .uhrfeld select{appearance:none;-webkit-appearance:none;background:none;border:none;
+    padding:0 2px;width:auto;font:inherit;font-size:2.05rem;font-weight:700;line-height:1;
+    color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:.01em;
+    text-align:center;cursor:pointer;border-radius:8px}
+  .uhrfeld select:focus{outline:none;background:var(--accent-soft)}
+  .uhrfeld .doppel{font-size:1.9rem;font-weight:700;color:var(--text2);line-height:1;
+    padding-bottom:4px}
   .uhrfeld .einheit{font-size:.95rem;color:var(--text2);font-weight:640;align-self:flex-end;
-    padding-bottom:6px}
+    padding-bottom:6px;margin-left:6px}
   .zeitchips{display:flex;gap:8px;margin-top:9px}
   .zeitchips button{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line-stark);
     border-radius:var(--radius-xs);padding:9px 4px 8px;font:inherit;cursor:pointer;color:var(--text2);
@@ -615,10 +618,15 @@
       </div>
 
       <div id="f-zeit-block" style="display:none">
-        <label class="field" for="f-uhrzeit">Uhrzeit <span class="req">*</span></label>
+        <label class="field" for="f-uhr-h">Uhrzeit <span class="req">*</span></label>
+        <!-- Eigene Stunden-/Minutenauswahl statt input[type=time]: Das native
+             Feld folgt der Systemsprache des Geräts und zeigt auf englisch
+             eingestellten Handys AM/PM. Hier gilt immer das 24-Stunden-System. -->
         <div class="uhrfeld" id="f-uhrfeld">
           <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-          <input type="time" id="f-uhrzeit" value="08:00">
+          <select id="f-uhr-h" aria-label="Stunde"></select>
+          <span class="doppel">:</span>
+          <select id="f-uhr-m" aria-label="Minute"></select>
           <span class="einheit">Uhr</span>
         </div>
         <div class="zeitchips" id="f-zeit-quick"></div>
@@ -2677,25 +2685,31 @@ const ZEIT_CHIPS = [
   { z: "08:00", l: "Morgens" }, { z: "12:00", l: "Mittags" },
   { z: "18:00", l: "Abends" }, { z: "21:00", l: "Zur Nacht" }
 ];
+/* Die beiden Auswahlfelder tragen immer das 24-Stunden-System – anders als
+   input[type=time], das der Systemsprache folgt und z. B. AM/PM zeigen würde. */
+$("f-uhr-h").innerHTML = Array.from({ length: 24 }, (_, i) =>
+  "<option>" + String(i).padStart(2, "0") + "</option>").join("");
+$("f-uhr-m").innerHTML = Array.from({ length: 60 }, (_, i) =>
+  "<option>" + String(i).padStart(2, "0") + "</option>").join("");
+function uhrzeitLesen(){ return $("f-uhr-h").value + ":" + $("f-uhr-m").value; }
+function uhrzeitSetzen(v){
+  const t = Core.zeitTeile(v);
+  $("f-uhr-h").value = String(t.stunde).padStart(2, "0");
+  $("f-uhr-m").value = String(t.minute).padStart(2, "0");
+  zeitChipsMarkieren();
+}
 function zeitChipsMarkieren(){
-  const v = $("f-uhrzeit").value;
+  const v = uhrzeitLesen();
   $("f-zeit-quick").querySelectorAll("button").forEach(b =>
     b.classList.toggle("active", b.dataset.z === v));
 }
 $("f-zeit-quick").innerHTML = ZEIT_CHIPS.map(c =>
   '<button type="button" data-z="' + c.z + '"><b>' + c.z + '</b><span>' + c.l + '</span></button>').join("");
 $("f-zeit-quick").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-  $("f-uhrzeit").value = b.dataset.z;
-  zeitChipsMarkieren();
+  uhrzeitSetzen(b.dataset.z);
 }));
-$("f-uhrzeit").addEventListener("input", zeitChipsMarkieren);
-/* Die ganze Kachel öffnet die Zeitauswahl – nicht nur das schmale Zahlenfeld. */
-$("f-uhrfeld").addEventListener("click", e => {
-  if (e.target.id === "f-uhrzeit") return;
-  const z = $("f-uhrzeit");
-  if (z.showPicker){ try { z.showPicker(); } catch(_) { z.focus(); } }
-  else z.focus();
-});
+$("f-uhr-h").addEventListener("change", zeitChipsMarkieren);
+$("f-uhr-m").addEventListener("change", zeitChipsMarkieren);
 
 function formOeffnen(id){
   formId = id;
@@ -2705,8 +2719,7 @@ function formOeffnen(id){
   formKats = e ? e.kategorien.slice() : [];
   formTypSetzen(e ? e.datumstyp : "ablauf");
   $("f-datum").value = e ? e.datum : "";
-  $("f-uhrzeit").value = e ? Core.fmtUhrzeit(e.uhrzeit) : "08:00";
-  zeitChipsMarkieren();
+  uhrzeitSetzen(e ? e.uhrzeit : "08:00");
   /* Benutzerdefinierte Rhythmen stehen im Auswahlfeld als "eigen" und
      bringen ihre Details in den Bausteinen darunter mit. */
   const w = e ? e.wiederholung : null;
@@ -2787,7 +2800,7 @@ $("f-speichern").addEventListener("click", () => {
   const e = Daten.upsert({
     id: formId || undefined,
     titel, kategorien: formKats.slice(), datumstyp: formTyp, datum,
-    uhrzeit: $("f-uhrzeit").value,
+    uhrzeit: uhrzeitLesen(),
     wiederholung: wdhWert.wiederholung, wdh: wdhWert.wdh,
     erinnerungen: formRem, erinnerungenAn: $("f-rem-an").checked,
     referenz: $("f-referenz").value, notiz: $("f-notiz").value,
