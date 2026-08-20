@@ -161,10 +161,20 @@ Release nicht starten. Trag dich unter „Tester“ selbst ein.
 ### 4.5 Bei jedem weiteren Upload
 
 In `android/app/build.gradle` den `versionCode` um 1 erhöhen (steht aktuell auf
-`2`), bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach
+`5`), bei sichtbaren Änderungen zusätzlich den `versionName` anpassen. Danach
 wieder `npm run cap:sync` und neu bauen. Sind mehrere Änderungen noch nicht
 hochgeladen, gehen sie in einem Build raus – dann steigt der `versionCode` nur
 einmal.
+
+**Versionshinweise für 1.1.0 (versionCode 5)** – in der Play Console beim
+Release einfügen:
+
+```
+Neu in dieser Version:
+• Eigene Wiederholungen: alle X Tage/Wochen/Monate oder feste Wochentage (z. B. jeden Sa und So)
+• Schönere Uhrzeit-Auswahl mit Schnellwahl (Morgens, Mittags, Abends, Zur Nacht) – immer im 24-Stunden-Format
+• Frische Optik mit neuen Illustrationen
+```
 
 ## 5. Auf dem Handy testen
 
